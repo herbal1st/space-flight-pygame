@@ -111,8 +111,12 @@ class Highscores(pygame.sprite.Sprite):
         self.left_clicked = False
         self.right_clicked = False
 
-        self.image = pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", f"{self.show} title.png"))\
-            .convert_alpha()
+        self.title_images = {
+            "easy": pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", "easy title.png")).convert_alpha(),
+            "medium": pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", "medium title.png")).convert_alpha(),
+            "hard": pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", "hard title.png")).convert_alpha()
+        }
+        self.image = self.title_images[self.show]
         self.rect = self.image.get_rect(topleft=(screen_width / 2 - self.image.get_width() / 2, 25))
 
         self.arrow_left = pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", "arrow left.png"))\
@@ -132,10 +136,6 @@ class Highscores(pygame.sprite.Sprite):
         self.scores = score_list_formatter.split()
 
     def animations(self):
-        self.image = pygame.image.load(os.path.join(os.getcwd(), "graphics", "artwork", f"{self.show} title.png"))\
-            .convert_alpha()
-        self.rect = self.image.get_rect(topleft=(screen_width / 2 - self.image.get_width() / 2, 25))
-
         if self.show == "medium" or self.show == "hard":
             screen.blit(self.arrow_left, (0, 300))
         if self.show == "medium" or self.show == "easy":
@@ -192,6 +192,9 @@ class Highscores(pygame.sprite.Sprite):
             start_menu.add(StartingScreen())
 
     def change_site(self):
+        self.image = self.title_images[self.show]
+        self.rect = self.image.get_rect(topleft=(screen_width / 2 - self.image.get_width() / 2, 25))
+
         highscore_name = open(os.path.join(os.getcwd(), "highscores", f"{self.show} names.txt"), "r")
         name_list_reader = highscore_name.readlines()
         name_list_formatter = "".join(name_list_reader)
@@ -1238,7 +1241,7 @@ hard = 200
 difficulty = medium
 player_name = ""
 legal_letters = ("1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-                 "Q," "W", "E", "R", "T", "Z", "U", "I", "O", "P",
+                 "Q", "W", "E", "R", "T", "Z", "U", "I", "O", "P",
                  "A", "S", "D", "F", "G", "H", "J", "K", "L",
                  "Y", "X", "C", "V", "B", "N", "M")
 
