@@ -7,24 +7,23 @@
    \ `\____\ \ ,__/\ \__/.\_\ \____\ \____\    \ \_\   /\____\\ \_\ \____ \ \_\ \_\ \__\
     \/_____/\ \ \/  \/__/\/_/\/____/\/____/     \/_/   \/____/ \/_/\/___L\ \/_/\/_/\/__/
              \ \_\                                                   /\____/            
-              \/_/                                                   \_/__/
+              \/_/                                                   \_/__/ 
 ===============================================================================
                                PROJECT PROFILE
 ===============================================================================
 
-[!] RETRO PIPELINE STATUS: LEGACY VERIFICATION PRE-ALPHA (UNASSISTED)
+[!] RETRO PIPELINE STATUS: PRODUCTION MODERNIZATION STAGE
 -------------------------------------------------------------------------------
 
 Welcome to Space Flight, a classic 2D retro space arcade shooter.
 
-This repository serves as a dedicated archive showcasing the project's original
-unassisted codebase. Built entirely from scratch years ago before utilizing AI
-assistants, this release captures a foundational snapshot of manual 
-architecture, direct event loops, and custom logic in Python and Pygame.
+This repository serves as a dedicated showcase of manual arcade layout design.
+It has been fully modernized from its monolithic snapshot to demonstrate explicit
+dependency injection, centralized routing, strict PEP 8 naming schemes, static
+type safety, and a zero-global state architecture.
 
-An optimized, PEP 8 compliant, type-safe, and fully modularized version will
-follow in future updates as we prepare this codebase for downstream 3D Voxel
-integration.
+This structured setup prepares the combat models and coordinates for downstream
+3D procedural voxel parsing inside the PyVorengi SDK pipeline.
 
 ===============================================================================
                               SYSTEM ENGINE SPEC
@@ -32,21 +31,17 @@ integration.
 
 * Core Runtime: Python 3.x
 * Dependency:   Pygame-CE / Pygame (standard)
-* Architecture: Monolithic direct game execution, sprite-driven states,
+* Architecture: Centralized State-Router pattern, decoupled entity modules,
                 pixel-perfect masks, file-based scoreboard, and parallax stars.
 
 ===============================================================================
-                             CRITICAL INITIALIZATION
+                             ROBUST LAUNCH SYSTEM
 ===============================================================================
 
-Due to legacy hardcoded path resolving (`os.getcwd()`), the game expects to
-evaluate its working directory directly at the repository root.
+File resolution is fully resolved relative to the file-structure of the package.
+You can execute the entry point from any working terminal directory:
 
-[!] IMPORTANT LAUNCH INSTRUCTION:
-    To run the game without file-not-found crashes, navigate your terminal
-    directly into the root folder containing `main.py` before executing:
-
-    $ python main.py
+$ python main.py
 
 ===============================================================================
                                 GAME CONTROLS
@@ -55,6 +50,10 @@ evaluate its working directory directly at the repository root.
 * Movement (Mouse Mode - Default):
   -> Hover / Move:   Track mouse coordinate mapping
   -> Toggle Mode:    Press [M] to activate Mouse Mode
+  -> Cursor Capture: The mouse cursor is captured, bound, and clamped strictly 
+                     inside the ship's flight corridor during combat. This 
+                     completely prevents coordinate drift when hitting edge
+                     limits. Press [ESC] to pause and release the cursor.
 
 * Movement (Keyboard Mode):
   -> Arrow Keys:     [Up] / [Down] / [Left] / [Right]
@@ -64,7 +63,7 @@ evaluate its working directory directly at the repository root.
   -> Primary Fire:   [Spacebar] or [Left Click] (Consumes Energy)
   
 * Game State:
-  -> Pause Game:     Press [ESC]
+  -> Pause Game:     Press [ESC] (Locks/Unlocks inputs automatically)
   -> Resume/Exit:    Use the interactive back button or close the window
 
 ===============================================================================
@@ -76,20 +75,56 @@ High scores are organized across three discrete directories:
 * Medium: `highscores/medium scores.txt` & `highscores/medium names.txt`
 * Hard:   `highscores/hard scores.txt`   & `highscores/hard names.txt`
 
-[!] NOTE: If these flat-files are missing or corrupted, path execution errors
-          will trigger immediately on state change. Keep them intact.
+The file-handling systems in `Game` automatically generate these directories
+and base templates if they are missing or corrupted on startup.
+
+===============================================================================
+                         CONFIGURATION & SETTINGS MANUAL
+===============================================================================
+
+The configuration variables declared in `src/settings.py` control the core
+rendering, game-loop mechanics, and physics progression curves:
+
+* `SCREEN_WIDTH` / `SCREEN_HEIGHT` (800 x 800)
+  Defines the logical screen space boundary. All entities utilize this box
+  for coordinate clamp checks and viewport wrap/kill checks.
+
+* `FPS` (60)
+  Controls the engine physics simulation speed and graphic update hertz.
+
+* Difficulty Score Thresholds (`DIFFICULTY_EASY` / `MEDIUM` / `HARD`)
+  These settings values act as the baseline triggers for the physical
+  speed-progression curve of the simulation.
+
+--- DIFFICULTY ACCELERATION MECHANICS ---
+
+The game speed scaling ratio (`game_speed`) is directly connected to the active
+difficulty threshold and the player's current session score. 
+
+The scaling calculation is evaluated as follows during the update loop:
+`self.game_speed = 1.0 + (self.score / self.difficulty) / 25.0`
+
+This creates the following progressive relationships:
+1. Trigger Point: Acceleration only triggers once the score exceeds the active
+   difficulty setting. On HARD (200), acceleration starts almost immediately,
+   whereas on EASY (1000), it remains at a static 1.0 pace for much longer.
+2. Progression Steepness: Because the chosen difficulty setting acts as the
+   mathematical divisor, a lower value (e.g., HARD = 200) causes the speed
+   multiplier to increase exponentially faster per point scored.
+   * On HARD (200): Dividing by 200 * 25 (5000) causes the speed to ramp up
+     significantly faster.
+   * On EASY (1000): Dividing by 1000 * 25 (25000) results in a highly
+     gradual, forgiving speed-increase curve.
 
 ===============================================================================
                              ROADMAP & OPTIMIZATION
 ===============================================================================
 
-Our next iteration aims to refactor this repository to reflect modern production
-standards, improving structural separation of concerns:
+The modern architectural refactoring milestones have been completed:
 
-[ ] Zero-Global Refactoring: Transition away from global state pools.
-[ ] Absolute Layouts: Implement relative box containers over magic coordinates.
-[ ] Static Type Safety: Add rigorous Python type hints to all classes/methods.
-[ ] Modular Organization: Break the massive monolithic module into structured,
-    implicit namespace components (e.g. gameplay, assets, mechanics, engines).
+[x] Zero-Global Refactoring: State variables and sprite groups are inside Game.
+[x] Absolute Layouts: Centralized state routing and drawing systems.
+[x] Static Type Safety: Rigorous Python type hints integrated on all classes.
+[x] Modular Organization: Decoupled into src/entities/ and src/screens/.
 [ ] PyVorengi SDK Integration: Bridge this space combat model as a direct,
     procedurally parsed 3D entity pipeline inside the PyVorengi voxel engine.
