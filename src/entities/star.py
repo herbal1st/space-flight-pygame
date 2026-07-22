@@ -40,12 +40,13 @@ class Star(pygame.sprite.Sprite):
     )
 
     def __init__(self, game: Game, y_pos: int = -50) -> None:
+        """Initialize parallax scrolling rate speeds, bounds, and scales."""
         super().__init__()
-        self.game = game
+        self.game: Game = game
         self.star_distance: int = randint(0, 20)
 
         # Resolve scale size via data lookup
-        scale_size = 13
+        scale_size: int = 13
         for limit, size in self.SCALES:
             if self.star_distance <= limit:
                 scale_size = size
@@ -54,7 +55,7 @@ class Star(pygame.sprite.Sprite):
         # Compile background star arrays using optimized direct scale load
         self.all_stars_list: list[list[pygame.Surface]] = []
         for num in range(1, 5):
-            path = settings.GRAPHICS_DIR / "bg" / f"star {num}"
+            path: Path = settings.GRAPHICS_DIR / "bg" / f"star {num}"
             star_imgs = _load_scaled_frames(path, (scale_size, scale_size))
             self.all_stars_list.append(star_imgs)
 
@@ -63,37 +64,47 @@ class Star(pygame.sprite.Sprite):
         )
         self.all_stars_index: int = randint(0, len(self.all_stars_list) - 1)
 
-        self.image = self.all_stars_list[self.all_stars_index][
+        self.image: pygame.Surface = self.all_stars_list[self.all_stars_index][
             int(self.star_index)
         ]
-        self.rect = self.image.get_rect(
+        self.rect: pygame.Rect = self.image.get_rect(
             center=(randint(-25, settings.SCREEN_WIDTH + 25), y_pos)
         )
 
-    def animation(self) -> None:
-        self.star_index += 0.5
+        self.pos_x: float = float(self.rect.x)
+        self.pos_y: float = float(self.rect.y)
+
+        # Resolve scroll speed based on distance grouping (pixels per second)
+        if self.star_distance in (0, 1, 2, 3, 4, 5):
+            self.scroll_speed: float = 60.0
+        elif self.star_distance in (6, 7, 8, 9, 10):
+            self.scroll_speed = 120.0
+        elif self.star_distance in (11, 12, 13, 14):
+            self.scroll_speed = 180.0
+        elif self.star_distance in (15, 16, 17):
+            self.scroll_speed = 240.0
+        elif self.star_distance in (18, 19):
+            self.scroll_speed = 300.0
+        else:
+            self.scroll_speed = 360.0
+
+    def animation(self, dt: float) -> None:
+        """Calculate animated offset frames."""
+        self.star_index += 30.0 * dt
         if self.star_index >= len(self.all_stars_list[self.all_stars_index]):
             self.star_index = 0.0
         self.image = self.all_stars_list[self.all_stars_index][
             int(self.star_index)
         ]
 
-    def movement(self) -> None:
-        if self.star_distance in (0, 1, 2, 3, 4, 5):
-            self.rect.y += int(1.0 * self.game.game_speed)
-        elif self.star_distance in (6, 7, 8, 9, 10):
-            self.rect.y += int(2.0 * self.game.game_speed)
-        elif self.star_distance in (11, 12, 13, 14):
-            self.rect.y += int(3.0 * self.game.game_speed)
-        elif self.star_distance in (15, 16, 17):
-            self.rect.y += int(4.0 * self.game.game_speed)
-        elif self.star_distance in (18, 19):
-            self.rect.y += int(5.0 * self.game.game_speed)
-        else:
-            self.rect.y += int(6.0 * self.game.game_speed)
+    def movement(self, dt: float) -> None:
+        """Propagate dynamic depth vector coordinates."""
+        self.pos_y += self.scroll_speed * self.game.game_speed * dt
+        self.rect.y = int(self.pos_y)
         if self.rect.top > settings.SCREEN_HEIGHT:
             self.kill()
 
-    def update(self) -> None:
-        self.animation()
-        self.movement()
+    def update(self, dt: float) -> None:
+        """Process layouts and parallax vector offsets."""
+        self.animation(dt)
+        self.movement(dt)

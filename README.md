@@ -9,7 +9,7 @@
              \ \_\                                                   /\____/            
               \/_/                                                   \_/__/ 
 ===============================================================================
-                               PROJECT PROFILE
+                                PROJECT PROFILE
 ===============================================================================
 
 [!] RETRO PIPELINE STATUS: PRODUCTION MODERNIZATION STAGE
@@ -30,9 +30,41 @@ This structured setup prepares the combat models and coordinates for downstream
 ===============================================================================
 
 * Core Runtime: Python 3.x
-* Dependency:   Pygame-CE / Pygame (standard)
+* Dependency:   Pygame-CE / Pygame (standard local desktop environment)
 * Architecture: Centralized State-Router pattern, decoupled entity modules,
+                Time-Delta physics scaling, direct-index mouse controls,
                 pixel-perfect masks, file-based scoreboard, and parallax stars.
+
+===============================================================================
+                       TIME-DELTA & PHYSICS ARCHITECTURE
+===============================================================================
+
+To ensure visual consistency and high-performance physics across all modern
+desktop environments, this engine implements three core structural upgrades:
+
+* Time-Delta Scaling (dt):
+  Traditional games tie their movement speeds directly to how fast the computer
+  draws graphics. If the system experiences lag, the gameplay runs in slow 
+  motion; if the screen has a high refresh rate, it runs at double speed. 
+  Space Flight resolves this using "Time-Delta" scaling. By calculating the 
+  exact fraction of a second that elapsed between frames (`dt`) and scaling 
+  all motion and animation frames by it, ship and projectile speeds remain 
+  perfectly uniform whether rendering at 30 FPS, 60 FPS, or 144 FPS.
+
+* Index-Direct Mouse Handling:
+  Pygame returns mouse button states as a coordinate list. Newer frameworks 
+  (like Pygame-CE) support extended gaming mice with 5 buttons, while older 
+  versions only return 3. By evaluating click states via explicit index checks
+  (e.g., checking index `0` directly for left-click) instead of matching exact
+  list sizes, the user interface remains immune to button-count mismatches
+  across different systems and runtimes.
+
+* Timeline Millisecond Spawning:
+  Instead of relying on the operating system's background event queue (which
+  can drop spawning signals when the processor is busy), the game schedules 
+  spawning delays as precise timestamps on a master timeline. By comparing 
+  the CPU's clock directly against these timeline thresholds, combat hazards
+  spawn smoothly and reliably without losing events.
 
 ===============================================================================
                              ROBUST LAUNCH SYSTEM
@@ -90,7 +122,7 @@ rendering, game-loop mechanics, and physics progression curves:
   for coordinate clamp checks and viewport wrap/kill checks.
 
 * `FPS` (60)
-  Controls the engine physics simulation speed and graphic update hertz.
+  Controls the target rendering limit and synchronizes timing loops.
 
 * Difficulty Score Thresholds (`DIFFICULTY_EASY` / `MEDIUM` / `HARD`)
   These settings values act as the baseline triggers for the physical
@@ -126,5 +158,6 @@ The modern architectural refactoring milestones have been completed:
 [x] Absolute Layouts: Centralized state routing and drawing systems.
 [x] Static Type Safety: Rigorous Python type hints integrated on all classes.
 [x] Modular Organization: Decoupled into src/entities/ and src/screens/.
+[x] Delta-Time & Frame-rate Independence: Fully integrated physics clock.
 [ ] PyVorengi SDK Integration: Bridge this space combat model as a direct,
     procedurally parsed 3D entity pipeline inside the PyVorengi voxel engine.

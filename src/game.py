@@ -1,4 +1,4 @@
-"""Orchestrator context coordinating subsystems, loaders, and event loops."""
+"""Orchestrator context coordinating subsystems and loops."""
 import sys
 from random import choice, randint
 from pathlib import Path
@@ -24,20 +24,24 @@ from src.entities.explosion import Explosion
 
 
 class SafeSound:
-    """Wrapper to prevent audio channel saturation and volume clipping."""
+    """Wrapper to prevent audio channel saturation and clipping."""
 
     def __init__(self, path: Path, max_overlap: int = 3) -> None:
-        self.sound = pygame.mixer.Sound(str(path))
-        self.max_overlap = max_overlap
+        """Initialize the sound wrapper with a maximum overlap."""
+        self.sound: pygame.mixer.Sound = pygame.mixer.Sound(str(path))
+        self.max_overlap: int = max_overlap
 
     def play(self, loops: int = 0, fade_ms: int = 0) -> None:
+        """Play sound safely if overlap limits are not exceeded."""
         if self.sound.get_num_channels() < self.max_overlap:
             self.sound.play(loops=loops, fade_ms=fade_ms)
 
     def set_volume(self, value: float) -> None:
+        """Set audio volume."""
         self.sound.set_volume(value)
 
     def fadeout(self, time: int) -> None:
+        """Fade out audio."""
         self.sound.fadeout(time)
 
 
@@ -45,17 +49,22 @@ class Game:
     """The master game manager class encapsulating active session state."""
 
     def __init__(self) -> None:
+        """Initialize context, window displays, timers, and sprite groups."""
         pygame.init()
         pygame.mixer.init()
 
-        self.screen = pygame.display.set_mode(
+        self.screen: pygame.Surface = pygame.display.set_mode(
             (settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT)
         )
         pygame.display.set_caption("Space Flight")
 
-        icon_path = settings.GRAPHICS_DIR / "artwork" / "joe mini logo.png"
+        icon_path: Path = (
+            settings.GRAPHICS_DIR / "artwork" / "joe mini logo.png"
+        )
         if icon_path.exists():
-            icon = pygame.image.load(str(icon_path)).convert_alpha()
+            icon: pygame.Surface = pygame.image.load(
+                str(icon_path)
+            ).convert_alpha()
             pygame.display.set_icon(icon)
 
         # Ensure directory persistence
@@ -63,78 +72,120 @@ class Game:
 
         # Engine states
         self.game_init: bool = True
+        self.music_started: bool = False
         self.game_state: str = "start"
         self.game_speed: float = 1.0
         self.score: int = 0
         self.difficulty: int = settings.DIFFICULTY_MEDIUM
         self.player_name: str = ""
 
-        # UI Font registry with safe cross-platform fallback options
-        font_fallbacks = ["Agency FB", "Century Gothic", "Arial", "sans-serif"]
-        self.font_1 = pygame.font.SysFont(font_fallbacks, 20)
-        self.font_2 = pygame.font.SysFont(font_fallbacks, 48)
-        self.font_3 = pygame.font.SysFont(font_fallbacks, 72)
+        # UI Font registry with absolute fallback mechanisms
+        font_fallbacks: list[str] = [
+            "Agency FB", "Century Gothic", "Arial", "sans-serif"
+        ]
+        local_font_path: Path = (
+            settings.GRAPHICS_DIR / "fonts" / "font.ttf"
+        )
+
+        if local_font_path.exists():
+            self.font_1: pygame.font.Font = pygame.font.Font(
+                str(local_font_path), 20
+            )
+            self.font_2: pygame.font.Font = pygame.font.Font(
+                str(local_font_path), 48
+            )
+            self.font_3: pygame.font.Font = pygame.font.Font(
+                str(local_font_path), 72
+            )
+        else:
+            self.font_1 = pygame.font.SysFont(font_fallbacks, 20)
+            self.font_2 = pygame.font.SysFont(font_fallbacks, 48)
+            self.font_3 = pygame.font.SysFont(font_fallbacks, 72)
 
         # Load Audio Sound Systems
-        self.sound_menu_music = self._load_sound("menu music.mp3")
+        self.sound_menu_music: SafeSound = self._load_sound(
+            "menu music.mp3"
+        )
         self.sound_menu_music.set_volume(0.1)
-        self.sound_game_music = self._load_sound("game music.mp3")
+        self.sound_game_music: SafeSound = self._load_sound(
+            "game music.mp3"
+        )
         self.sound_game_music.set_volume(0.1)
-        self.sound_player_laser_shot = self._load_sound(
+        self.sound_player_laser_shot: SafeSound = self._load_sound(
             "player laser shot.wav"
         )
-        self.sound_ufo_laser_hit = self._load_sound("ufo laser hit.wav")
-        self.sound_powerup = self._load_sound("powerup.wav")
-        self.sound_ufo_explosion = self._load_sound("ufo explosion.wav")
-        self.sound_rock_explosion = self._load_sound("rock explosion.wav")
-        self.sound_ufo_laser_shot = self._load_sound("ufo laser shot.wav")
+        self.sound_ufo_laser_hit: SafeSound = self._load_sound(
+            "ufo laser hit.wav"
+        )
+        self.sound_powerup: SafeSound = self._load_sound("powerup.wav")
+        self.sound_ufo_explosion: SafeSound = self._load_sound(
+            "ufo explosion.wav"
+        )
+        self.sound_rock_explosion: SafeSound = self._load_sound(
+            "rock explosion.wav"
+        )
+        self.sound_ufo_laser_shot: SafeSound = self._load_sound(
+            "ufo laser shot.wav"
+        )
 
-        self.clock = pygame.time.Clock()
+        self.clock: pygame.time.Clock = pygame.time.Clock()
 
-        # Internal Timers Definition
-        self.enemy_timer = pygame.USEREVENT + 1
-        pygame.time.set_timer(self.enemy_timer, 2000)
-
-        self.obstacle_timer = pygame.USEREVENT + 2
-        pygame.time.set_timer(self.obstacle_timer, randint(1000, 2500))
-
-        self.powerup_timer = pygame.USEREVENT + 3
-        pygame.time.set_timer(self.powerup_timer, randint(10000, 25000))
+        # WASM-safe inline timer boundaries (tracking timestamps in ms)
+        self.current_time: int = 0
+        self.next_enemy_spawn: int = 0
+        self.next_obstacle_spawn: int = 0
+        self.next_powerup_spawn: int = 0
 
         # Organize Sprite Group Entities
-        self.start_menu = pygame.sprite.GroupSingle(StartingScreen(self))
-        self.options = pygame.sprite.GroupSingle()
-        self.controls = pygame.sprite.GroupSingle()
-        self.highscores = pygame.sprite.GroupSingle()
-        self.game_over = pygame.sprite.GroupSingle()
-        self.input_name = pygame.sprite.GroupSingle()
-        self.pause = pygame.sprite.GroupSingle()
+        self.start_menu: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle(StartingScreen(self))
+        )
+        self.options: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.controls: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.highscores: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.game_over: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.input_name: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.pause: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
 
-        self.ship = pygame.sprite.GroupSingle()
-        self.player_shots = pygame.sprite.Group()
-        self.player_shield = pygame.sprite.GroupSingle()
+        self.ship: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
+        self.player_shots: pygame.sprite.Group = pygame.sprite.Group()
+        self.player_shield: pygame.sprite.GroupSingle = (
+            pygame.sprite.GroupSingle()
+        )
 
-        self.enemies = pygame.sprite.Group()
-        self.enemy_shots = pygame.sprite.Group()
+        self.enemies: pygame.sprite.Group = pygame.sprite.Group()
+        self.enemy_shots: pygame.sprite.Group = pygame.sprite.Group()
 
-        self.obstacles = pygame.sprite.Group()
-        self.stars = pygame.sprite.Group()
-        self.powerups = pygame.sprite.Group()
-        self.explosions = pygame.sprite.Group()
+        self.obstacles: pygame.sprite.Group = pygame.sprite.Group()
+        self.stars: pygame.sprite.Group = pygame.sprite.Group()
+        self.powerups: pygame.sprite.Group = pygame.sprite.Group()
+        self.explosions: pygame.sprite.Group = pygame.sprite.Group()
 
     def _load_sound(self, filename: str) -> SafeSound:
-        path = settings.SOUND_DIR / filename
-        if path.exists():
-            return SafeSound(path)
-        # Empty fallback logic handled by wrapper
-        return SafeSound(settings.SOUND_DIR / filename)
+        """Load Sound wrapping with safe fallbacks."""
+        path: Path = settings.SOUND_DIR / filename
+        return SafeSound(path)
 
     def _ensure_highscore_files(self) -> None:
-        """Autocreates empty database files to prevent execution crash."""
+        """Autocreates missing highscore directory files."""
         settings.HIGHSCORES_DIR.mkdir(parents=True, exist_ok=True)
         for diff in ("easy", "medium", "hard"):
-            n_file = settings.HIGHSCORES_DIR / f"{diff} names.txt"
-            s_file = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
+            n_file: Path = settings.HIGHSCORES_DIR / f"{diff} names.txt"
+            s_file: Path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
             if not n_file.exists():
                 with open(n_file, "w") as f:
                     f.write(
@@ -151,28 +202,30 @@ class Game:
                     )
 
     def test_highscore(self, score: int, difficulty_setting: int) -> bool:
-        diff = self.get_difficulty_name(difficulty_setting)
-        score_path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
+        """Check if the session score qualifies for the leaderboard."""
+        diff: str = self.get_difficulty_name(difficulty_setting)
+        score_path: Path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
         with open(score_path, "r") as f:
-            board_scores = f.readlines()
+            board_scores: list[str] = f.readlines()
         return score > int(board_scores[10].strip())
 
     def place_highscore(
         self, name: str, score: int, difficulty_setting: int
     ) -> None:
-        diff = self.get_difficulty_name(difficulty_setting)
-        score_path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
-        name_path = settings.HIGHSCORES_DIR / f"{diff} names.txt"
+        """Insert high score entry into persistence files."""
+        diff: str = self.get_difficulty_name(difficulty_setting)
+        score_path: Path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
+        name_path: Path = settings.HIGHSCORES_DIR / f"{diff} names.txt"
 
         with open(score_path, "r") as f:
-            board_scores = f.readlines()
+            board_scores: list[str] = f.readlines()
         with open(name_path, "r") as f:
-            board_names = f.readlines()
+            board_names: list[str] = f.readlines()
 
         for i in range(10, 0, -1):
-            if int(board_scores[i].strip()) < score <= int(
-                board_scores[i - 1].strip()
-            ):
+            score_val = int(board_scores[i].strip())
+            prev_val = int(board_scores[i - 1].strip())
+            if score_val < score <= prev_val:
                 board_scores.insert(i, f"{score}\n")
                 board_scores.pop()
                 board_names.insert(i, f"{name}\n")
@@ -184,6 +237,7 @@ class Game:
             f.writelines(board_names)
 
     def get_difficulty_name(self, value: int) -> str:
+        """Translate difficulty integer setting into directory naming."""
         if value == settings.DIFFICULTY_EASY:
             return "easy"
         if value == settings.DIFFICULTY_MEDIUM:
@@ -191,7 +245,7 @@ class Game:
         return "hard"
 
     def transition_to(self, state: str) -> None:
-        """Transitions game state and handles centralized routing."""
+        """Transition game state and handle centralized routing."""
         self.start_menu.empty()
         self.options.empty()
         self.controls.empty()
@@ -202,7 +256,6 @@ class Game:
 
         self.game_state = state
 
-        # Handle mouse grabbing and visibility based on active gameplay state
         if state == "game":
             pygame.event.set_grab(True)
         else:
@@ -225,20 +278,30 @@ class Game:
             self.input_name.add(PlayerName(self))
 
     def start_game(self) -> None:
+        """Configure session play buffers and play in-game audio."""
         self.sound_menu_music.fadeout(2000)
         self.sound_game_music.play(loops=-1, fade_ms=2000)
         self.transition_to("game")
         self.ship.add(PlayerShip(self))
         pygame.mouse.set_pos(self.ship.sprite.rect.center)
 
+        # Initialize timing timestamps relative to start tick
+        now: int = pygame.time.get_ticks()
+        self.next_enemy_spawn = now + 2000
+        self.next_obstacle_spawn = now + randint(1000, 2500)
+        self.next_powerup_spawn = now + randint(10000, 25000)
+
     def trigger_pause(self) -> None:
+        """Freeze combat and transition to standard paused HUD state."""
         self.transition_to("pause")
 
     def resume_game(self) -> None:
+        """Unfreeze simulation and return context cursor mapping."""
         self.transition_to("game")
         pygame.mouse.set_pos(self.ship.sprite.rect.center)
 
     def trigger_game_over(self) -> None:
+        """Purge play vectors and redirect to scoreboard submission."""
         self.ship.empty()
         self.player_shield.empty()
         self.player_shots.empty()
@@ -249,28 +312,13 @@ class Game:
         self.explosions.empty()
         self.transition_to("game over")
 
-    def update_enemy_timer(self) -> None:
-        pygame.time.set_timer(self.enemy_timer, int(2000 / self.game_speed))
-
-    def update_obstacle_timer(self) -> None:
-        pygame.time.set_timer(
-            self.obstacle_timer,
-            randint(
-                int(1000 / self.game_speed), int(3000 / self.game_speed)
-            ),
-        )
-
-    def shutdown(self) -> None:
-        pygame.quit()
-        sys.exit()
-
     def handle_events(self) -> None:
+        """Execute central single-frame inputs and state mappings."""
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.shutdown()
 
-            # Window focus loss auto-pause handler (focus safety)
-            is_focus_lost = False
+            is_focus_lost: bool = False
             if event.type == pygame.ACTIVEEVENT:
                 if hasattr(event, "gain") and event.gain == 0:
                     if hasattr(event, "state") and event.state == 2:
@@ -281,32 +329,12 @@ class Game:
             if is_focus_lost and self.game_state == "game":
                 self.trigger_pause()
 
-            # Centralized Single-Frame Keydown Router (prevents key conflicts)
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     if self.game_state == "game":
                         self.trigger_pause()
                     elif self.game_state == "pause":
                         self.resume_game()
-
-            if self.game_state == "game":
-                if event.type == self.enemy_timer:
-                    self.enemies.add(Enemy(self))
-                    self.update_enemy_timer()
-
-                if event.type == self.obstacle_timer:
-                    self.obstacles.add(Obstacle(self))
-                    self.update_obstacle_timer()
-
-                if event.type == self.powerup_timer:
-                    choice_pow = choice(
-                        [
-                            ShieldPowerup(self),
-                            HealthPowerup(self),
-                            EnergyPowerup(self),
-                        ]
-                    )
-                    self.powerups.add(choice_pow)
 
             if self.game_state == "input name":
                 if event.type == pygame.KEYDOWN:
@@ -319,56 +347,86 @@ class Game:
                         self.transition_to("start")
                     else:
                         if len(self.player_name) <= settings.MAX_NAME_LENGTH:
-                            char = event.unicode.upper()
+                            char: str = event.unicode.upper()
                             if char in settings.LEGAL_LETTERS:
                                 self.player_name += char
 
-    def update(self) -> None:
-        # Background management
+    def update(self, dt: float) -> None:
+        """Compute logical motion, custom timers, and animation ticks."""
         if self.game_init:
             self.sound_menu_music.play(loops=-1)
             for _ in range(35):
-                self.stars.add(
-                    Star(self, y_pos=randint(-25, settings.SCREEN_HEIGHT + 25))
+                start_y: int = randint(
+                    -25, settings.SCREEN_HEIGHT + 25
                 )
+                self.stars.add(Star(self, y_pos=start_y))
             self.game_init = False
 
         if len(self.stars) <= 35:
             self.stars.add(Star(self))
 
-        self.stars.update()
+        self.stars.update(dt)
 
-        # Logic calculations cycle
+        self.current_time = pygame.time.get_ticks()
+
         if self.game_state == "start":
             self.player_name = ""
-            self.start_menu.update()
+            self.start_menu.update(dt)
         elif self.game_state == "options":
-            self.options.update()
+            self.options.update(dt)
         elif self.game_state == "controls":
-            self.controls.update()
+            self.controls.update(dt)
         elif self.game_state == "highscores":
-            self.highscores.update()
+            self.highscores.update(dt)
         elif self.game_state == "pause":
-            self.pause.update()
+            self.pause.update(dt)
         elif self.game_state == "game":
             if self.score > self.difficulty:
                 self.game_speed = 1.0 + self.score / self.difficulty / 25.0
 
-            self.explosions.update()
-            self.obstacles.update()
-            self.enemies.update()
-            self.enemy_shots.update()
-            self.player_shots.update()
-            self.powerups.update()
-            self.ship.update()
-            self.player_shield.update()
+            # Custom clock spawning threshold evaluations
+            if self.current_time >= self.next_enemy_spawn:
+                self.enemies.add(Enemy(self))
+                self.next_enemy_spawn = self.current_time + int(
+                    2000 / self.game_speed
+                )
+
+            if self.current_time >= self.next_obstacle_spawn:
+                self.obstacles.add(Obstacle(self))
+                min_delay: int = int(1000 / self.game_speed)
+                max_delay: int = int(3000 / self.game_speed)
+                self.next_obstacle_spawn = (
+                    self.current_time + randint(min_delay, max_delay)
+                )
+
+            if self.current_time >= self.next_powerup_spawn:
+                choice_pow = choice(
+                    [
+                        ShieldPowerup(self),
+                        HealthPowerup(self),
+                        EnergyPowerup(self),
+                    ]
+                )
+                self.powerups.add(choice_pow)
+                self.next_powerup_spawn = self.current_time + randint(
+                    10000, 25000
+                )
+
+            self.explosions.update(dt)
+            self.obstacles.update(dt)
+            self.enemies.update(dt)
+            self.enemy_shots.update(dt)
+            self.player_shots.update(dt)
+            self.powerups.update(dt)
+            self.ship.update(dt)
+            self.player_shield.update(dt)
         elif self.game_state == "game over":
-            self.game_over.update()
+            self.game_over.update(dt)
         elif self.game_state == "input name":
-            self.input_name.update()
+            self.input_name.update(dt)
 
     def draw(self) -> None:
-        """Drawing cycle with correct overlay layers rendering."""
+        """Renders all layer objects to the screen."""
         self.screen.fill((0, 0, 0))
         self.stars.draw(self.screen)
 
@@ -395,7 +453,6 @@ class Game:
             self.obstacles.draw(self.screen)
             self.enemies.draw(self.screen)
 
-            # Draw UFO rotating lights and extra layers
             for enemy in self.enemies:
                 enemy.draw_extras(self.screen)
 
@@ -404,7 +461,6 @@ class Game:
             self.powerups.draw(self.screen)
             self.ship.draw(self.screen)
 
-            # Draw Ship extra overlays (exhaust, HUD, bars)
             if self.ship.sprite:
                 self.ship.sprite.draw_extras(self.screen)
 
@@ -420,10 +476,17 @@ class Game:
 
         pygame.display.update()
 
+    def shutdown(self) -> None:
+        """Terminate subsystems safely and exit execution."""
+        pygame.quit()
+        sys.exit()
+
     def run(self) -> None:
-        """Main game control loop."""
+        """Synchronous main execution loop running on the desktop."""
         while True:
+            dt: float = self.clock.tick(settings.FPS) / 1000.0
+            dt = min(dt, 0.1)
+
             self.handle_events()
-            self.update()
+            self.update(dt)
             self.draw()
-            self.clock.tick(settings.FPS)

@@ -13,34 +13,41 @@ class StartingScreen(pygame.sprite.Sprite):
     """Initial landing main menu screen."""
 
     def __init__(self, game: Game) -> None:
+        """Initialize graphics arrays and buttons of the landing page."""
         super().__init__()
-        self.game = game
+        self.game: Game = game
         self.options_clicked: bool = False
         self.controls_clicked: bool = False
         self.highscores_clicked: bool = False
         self.game.score = 0
 
-        title_p = settings.GRAPHICS_DIR / "artwork" / "game title.png"
-        self.image = pygame.image.load(str(title_p)).convert_alpha()
-        self.rect = self.image.get_rect(topleft=(0, 0))
+        title_p: Path = (
+            settings.GRAPHICS_DIR / "artwork" / "game title.png"
+        )
+        self.image: pygame.Surface = pygame.image.load(
+            str(title_p)
+        ).convert_alpha()
+        self.rect: pygame.Rect = self.image.get_rect(topleft=(0, 0))
 
-        start_p = settings.GRAPHICS_DIR / "artwork" / "start.png"
-        self.start_game = pygame.image.load(
+        start_p: Path = settings.GRAPHICS_DIR / "artwork" / "start.png"
+        self.start_game: pygame.Surface = pygame.image.load(
             str(start_p)
         ).convert_alpha()
 
-        ctrl_p = settings.GRAPHICS_DIR / "artwork" / "controls.png"
-        self.controls = pygame.image.load(
+        ctrl_p: Path = settings.GRAPHICS_DIR / "artwork" / "controls.png"
+        self.controls: pygame.Surface = pygame.image.load(
             str(ctrl_p)
         ).convert_alpha()
 
-        scores_p = settings.GRAPHICS_DIR / "artwork" / "highscores.png"
-        self.highscores = pygame.image.load(
+        scores_p: Path = (
+            settings.GRAPHICS_DIR / "artwork" / "highscores.png"
+        )
+        self.highscores: pygame.Surface = pygame.image.load(
             str(scores_p)
         ).convert_alpha()
 
-        quit_p = settings.GRAPHICS_DIR / "artwork" / "quit.png"
-        self.quit = pygame.image.load(
+        quit_p: Path = settings.GRAPHICS_DIR / "artwork" / "quit.png"
+        self.quit: pygame.Surface = pygame.image.load(
             str(quit_p)
         ).convert_alpha()
 
@@ -52,7 +59,8 @@ class StartingScreen(pygame.sprite.Sprite):
         surface.blit(self.quit, (120, 660))
 
     def interaction(self) -> None:
-        if pygame.mouse.get_pressed(3) == (True, False, False):
+        """Route click coordinates to distinct layout transitions."""
+        if pygame.mouse.get_pressed()[0]:
             m_pos = pygame.mouse.get_pos()
             if m_pos[0] in range(120, 680) and m_pos[1] in range(345, 435):
                 self.options_clicked = True
@@ -63,20 +71,15 @@ class StartingScreen(pygame.sprite.Sprite):
             if m_pos[0] in range(120, 680) and m_pos[1] in range(660, 750):
                 self.game.shutdown()
 
-        if self.options_clicked and pygame.mouse.get_pressed(3) == (
-            False, False, False
-        ):
+        if self.options_clicked and not pygame.mouse.get_pressed()[0]:
             self.game.transition_to("options")
 
-        if self.controls_clicked and pygame.mouse.get_pressed(3) == (
-            False, False, False
-        ):
+        if self.controls_clicked and not pygame.mouse.get_pressed()[0]:
             self.game.transition_to("controls")
 
-        if self.highscores_clicked and pygame.mouse.get_pressed(3) == (
-            False, False, False
-        ):
+        if self.highscores_clicked and not pygame.mouse.get_pressed()[0]:
             self.game.transition_to("highscores")
 
-    def update(self) -> None:
+    def update(self, dt: float) -> None:
+        """Detect and route click events on primary menu options."""
         self.interaction()

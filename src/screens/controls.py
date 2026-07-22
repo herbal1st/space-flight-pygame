@@ -13,37 +13,38 @@ class Controls(pygame.sprite.Sprite):
     """Layout demonstrating input bindings configuration."""
 
     def __init__(self, game: Game) -> None:
+        """Initialize control textures, bounding boxes, and backgrounds."""
         super().__init__()
-        self.game = game
+        self.game: Game = game
         self.back_clicked: bool = False
 
-        path_page = (
+        path_page: Path = (
             settings.GRAPHICS_DIR / "artwork" / "controls page.png"
         )
-        self.image = pygame.image.load(
+        self.image: pygame.Surface = pygame.image.load(
             str(path_page)
         ).convert_alpha()
-        self.rect = self.image.get_rect(topleft=(0, 0))
+        self.rect: pygame.Rect = self.image.get_rect(topleft=(0, 0))
 
-        path_back = settings.GRAPHICS_DIR / "artwork" / "back.png"
-        self.back = pygame.image.load(
+        path_back: Path = settings.GRAPHICS_DIR / "artwork" / "back.png"
+        self.back: pygame.Surface = pygame.image.load(
             str(path_back)
         ).convert_alpha()
 
     def draw_extras(self, surface: pygame.Surface) -> None:
-        """Renders overlay escape back button."""
+        """Render overlay escape back button."""
         surface.blit(self.back, (285, 640))
 
     def interaction(self) -> None:
-        if pygame.mouse.get_pressed(3) == (True, False, False):
+        """Evaluate escape clicks to transition back to main menu."""
+        if pygame.mouse.get_pressed()[0]:
             m_pos = pygame.mouse.get_pos()
             if m_pos[0] in range(285, 515) and m_pos[1] in range(640, 730):
                 self.back_clicked = True
 
-        if self.back_clicked and pygame.mouse.get_pressed(3) == (
-            False, False, False
-        ):
+        if self.back_clicked and not pygame.mouse.get_pressed()[0]:
             self.game.transition_to("start")
 
-    def update(self) -> None:
+    def update(self, dt: float) -> None:
+        """Process visual click interactions and update internal states."""
         self.interaction()

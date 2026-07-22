@@ -15,58 +15,82 @@ class Obstacle(pygame.sprite.Sprite):
     """The falling hazard space rocks/asteroids."""
 
     def __init__(self, game: Game) -> None:
+        """Initialize asteroid velocity, rotations, and vector paths."""
         super().__init__()
-        self.game = game
-        self.speed_x: float = float(randint(0, 5)) * self.game.game_speed
-        self.speed_y: float = float(randint(2, 5)) * self.game.game_speed
+        self.game: Game = game
+        self.speed_x: float = (
+            float(randint(0, 5)) * 60.0 * self.game.game_speed
+        )
+        self.speed_y: float = (
+            float(randint(2, 5)) * 60.0 * self.game.game_speed
+        )
         self.direction_x: int = randint(0, 1)
         self.turn_direction: int = randint(0, 1)
-        self.turn_speed: float = uniform(0.5, 1.0)
+        self.turn_speed: float = uniform(30.0, 60.0)
 
-        path = settings.GRAPHICS_DIR / "obstacles" / "rock"
+        path: Path = settings.GRAPHICS_DIR / "obstacles" / "rock"
         obstacle_images = [
-            pygame.image.load(str(p)) for p in sorted(path.glob("*.png"))
+            pygame.image.load(str(p))
+            for p in sorted(path.glob("*.png"))
         ]
-        self.obstacle_list = [
+        self.obstacle_list: list[pygame.Surface] = [
             pygame.transform.scale(img, (78, 78)).convert_alpha()
             for img in obstacle_images
         ]
         self.obstacle_index: float = 0.0
-        self.image = self.obstacle_list[int(self.obstacle_index)]
-        self.rect = self.image.get_rect(
+        self.image: pygame.Surface = self.obstacle_list[
+            int(self.obstacle_index)
+        ]
+        self.rect: pygame.Rect = self.image.get_rect(
             center=(randint(-100, settings.SCREEN_WIDTH + 100), -50)
         )
-        self.mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
 
-    def animation(self) -> None:
+        self.pos_x: float = float(self.rect.x)
+        self.pos_y: float = float(self.rect.y)
+
+    def animation(self, dt: float) -> None:
+        """Compute active tumbling rotation layout frame."""
         if self.turn_direction:
-            self.obstacle_index += self.turn_speed
+            self.obstacle_index += self.turn_speed * dt
             if self.obstacle_index >= len(self.obstacle_list):
                 self.obstacle_index = 0.0
             self.image = self.obstacle_list[int(self.obstacle_index)]
         else:
-            self.obstacle_index -= self.turn_speed
+            self.obstacle_index -= self.turn_speed * dt
             if self.obstacle_index <= 0:
-                self.obstacle_index = float(len(self.obstacle_list) - 1)
+                self.obstacle_index = float(
+                    len(self.obstacle_list) - 1
+                )
             self.image = self.obstacle_list[int(self.obstacle_index)]
 
-    def movement(self) -> None:
+    def movement(self, dt: float) -> None:
+        """Calculate directional translation and viewport boundary exits."""
         if self.direction_x:
-            self.rect.x += int(self.speed_x)
+            self.pos_x += self.speed_x * dt
         else:
-            self.rect.x -= int(self.speed_x)
-        self.rect.y += int(self.speed_y)
+            self.pos_x -= self.speed_x * dt
+        self.pos_y += self.speed_y * dt
+
+        self.rect.x = int(self.pos_x)
+        self.rect.y = int(self.pos_y)
+
         if (
             self.rect.right >= settings.SCREEN_WIDTH + 150
             or self.rect.x <= -150
         ):
-            self.speed_x = float(randint(2, 5)) * self.game.game_speed
-            self.speed_y = float(randint(2, 5)) * self.game.game_speed
+            self.speed_x = (
+                float(randint(2, 5)) * 60.0 * self.game.game_speed
+            )
+            self.speed_y = (
+                float(randint(2, 5)) * 60.0 * self.game.game_speed
+            )
             self.direction_x = not self.direction_x
         if self.rect.top > settings.SCREEN_HEIGHT:
             self.kill()
 
     def collision(self) -> None:
+        """Check laser impacts to trigger explosions and add scores."""
         for laser_beam in self.game.player_shots:
             if pygame.sprite.collide_rect(self, laser_beam):
                 if pygame.sprite.collide_mask(self, laser_beam):
@@ -84,7 +108,8 @@ class Obstacle(pygame.sprite.Sprite):
                     )
                     self.kill()
 
-    def update(self) -> None:
-        self.animation()
-        self.movement()
+    def update(self, dt: float) -> None:
+        """Process animation matrices, motion delta, and hit overlaps."""
+        self.animation(dt)
+        self.movement(dt)
         self.collision()

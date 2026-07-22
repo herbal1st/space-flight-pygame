@@ -7,9 +7,9 @@ SCREEN_HEIGHT: int = 800  # pixels
 FPS: int = 60  # hertz
 
 # Difficulty score target constants
-DIFFICULTY_EASY: int = 1000  # threshold
-DIFFICULTY_MEDIUM: int = 500  # threshold
-DIFFICULTY_HARD: int = 200  # threshold
+DIFFICULTY_EASY: int = 1000  # points
+DIFFICULTY_MEDIUM: int = 500  # points
+DIFFICULTY_HARD: int = 200  # points
 
 # Character limits and parameters
 MAX_NAME_LENGTH: int = 10  # characters
@@ -22,7 +22,7 @@ LEGAL_LETTERS: tuple[str, ...] = (
     "Y", "X", "C", "V", "B", "N", "M"
 )
 
-# Relative directory paths (re-directed back to main root from src subfolder)
+# Relative directory paths
 BASE_DIR: Path = Path(__file__).resolve().parent.parent
 GRAPHICS_DIR: Path = BASE_DIR / "graphics"
 SOUND_DIR: Path = BASE_DIR / "sound"
