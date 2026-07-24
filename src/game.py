@@ -1,10 +1,12 @@
 """Orchestrator context coordinating subsystems and loops."""
 import sys
+import time
 from random import choice, randint
 from pathlib import Path
 import pygame
 
 import src.settings as settings
+from src.assets import AssetRegistry
 from src.screens.menu import StartingScreen
 from src.screens.pause import PauseScreen
 from src.screens.game_over import GameOver
@@ -66,6 +68,9 @@ class Game:
                 str(icon_path)
             ).convert_alpha()
             pygame.display.set_icon(icon)
+
+        # Initialize the centralized asset loading pipeline
+        self.assets: AssetRegistry = AssetRegistry()
 
         # Ensure directory persistence
         self._ensure_highscore_files()
@@ -129,6 +134,11 @@ class Game:
         )
 
         self.clock: pygame.time.Clock = pygame.time.Clock()
+
+        # Telemetry tracking variables
+        self._last_time: float = time.perf_counter()
+        self._smoothed_fps: float = float(settings.FPS)
+        self._fps_history: list[tuple[float, float]] = []
 
         # WASM-safe inline timer boundaries (tracking timestamps in ms)
         self.current_time: int = 0
@@ -474,7 +484,67 @@ class Game:
             if self.input_name.sprite:
                 self.input_name.sprite.draw_extras(self.screen)
 
+        # Draw unified performance diagnostic panel in the lower-right
+        if settings.SHOW_FPS:
+            self._render_diagnostic_fps()
+
         pygame.display.update()
+
+    def _render_diagnostic_fps(self) -> None:
+        """Samples frame intervals and draws real-time telemetry."""
+        current_time: float = time.perf_counter()
+        delta_sec: float = current_time - self._last_time
+        self._last_time = current_time
+
+        delta_sec = max(0.0001, delta_sec)
+        raw_fps: float = 1.0 / delta_sec
+
+        alpha = 0.05
+        self._smoothed_fps = (
+            (self._smoothed_fps * (1.0 - alpha)) + (raw_fps * alpha)
+        )
+
+        self._fps_history.append((current_time, raw_fps))
+
+        cutoff = current_time - 5.0
+        self._fps_history = [
+            item for item in self._fps_history if item[0] >= cutoff
+        ]
+
+        raw_values = [item[1] for item in self._fps_history]
+        min_fps = min(raw_values) if raw_values else raw_fps
+        max_fps = max(raw_values) if raw_values else raw_fps
+
+        fps_text_1: str = f"Avg FPS: {self._smoothed_fps:5.1f}"
+        fps_text_2: str = f"Min/Max: {min_fps:5.1f} - {max_fps:5.1f}"
+
+        fps_surf_1 = self.font_1.render(fps_text_1, True, (0, 255, 0))
+        fps_surf_2 = self.font_1.render(fps_text_2, True, (0, 255, 0))
+
+        screen_w = self.screen.get_width()
+        screen_h = self.screen.get_height()
+        text_w = max(fps_surf_1.get_width(), fps_surf_2.get_width())
+        h1 = fps_surf_1.get_height()
+        h2 = fps_surf_2.get_height()
+        text_h = h1 + h2 + 4
+
+        pad = 6
+        box_w = text_w + (pad * 2)
+        box_h = text_h + (pad * 2)
+        
+        # Position box at the lower-right corner
+        box_x = screen_w - box_w - 10
+        box_y = screen_h - box_h - 10
+
+        bg_surf = pygame.Surface((box_w, box_h), pygame.SRCALPHA)
+        bg_surf.fill((20, 20, 20, 180))
+        pygame.draw.rect(
+            bg_surf, (100, 100, 100, 200), (0, 0, box_w, box_h), 1
+        )
+
+        self.screen.blit(bg_surf, (box_x, box_y))
+        self.screen.blit(fps_surf_1, (box_x + pad, box_y + pad))
+        self.screen.blit(fps_surf_2, (box_x + pad, box_y + pad + h1 + 4))
 
     def shutdown(self) -> None:
         """Terminate subsystems safely and exit execution."""

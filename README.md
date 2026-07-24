@@ -124,6 +124,9 @@ rendering, game-loop mechanics, and physics progression curves:
 * `FPS` (60)
   Controls the target rendering limit and synchronizes timing loops.
 
+* `SHOW_FPS` (True)
+  Toggles the real-time diagnostic performance overlay.
+
 * Difficulty Score Thresholds (`DIFFICULTY_EASY` / `MEDIUM` / `HARD`)
   These settings values act as the baseline triggers for the physical
   speed-progression curve of the simulation.
@@ -159,5 +162,11 @@ The modern architectural refactoring milestones have been completed:
 [x] Static Type Safety: Rigorous Python type hints integrated on all classes.
 [x] Modular Organization: Decoupled into src/entities/ and src/screens/.
 [x] Delta-Time & Frame-rate Independence: Fully integrated physics clock.
-[ ] PyVorengi SDK Integration: Bridge this space combat model as a direct,
+[x] PyVorengi SDK Integration: Bridge this space combat model as a direct,
     procedurally parsed 3D entity pipeline inside the PyVorengi voxel engine.
+[x] Centralized Asset Pre-Caching: Startup loading, alpha-converting, scaling,
+    and mask pre-calculation. Completely eliminates on-the-fly disk reads and 
+    CPU collision mask compilation, ensuring stable, fluid frame pacing.
+
+===============================================================================
+Distributed under the MIT License. Copyright (c) 2026 herbal1st.

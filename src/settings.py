@@ -6,6 +6,9 @@ SCREEN_WIDTH: int = 800  # pixels
 SCREEN_HEIGHT: int = 800  # pixels
 FPS: int = 60  # hertz
 
+# Diagnostic configurations
+SHOW_FPS: bool = False  # bool
+
 # Difficulty score target constants
 DIFFICULTY_EASY: int = 1000  # points
 DIFFICULTY_MEDIUM: int = 500  # points

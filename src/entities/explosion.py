@@ -11,7 +11,7 @@ if typing.TYPE_CHECKING:
 
 
 class Explosion(pygame.sprite.Sprite):
-    """The visual animated explosion visual effect."""
+    """The visual animated explosion effect."""
 
     def __init__(
         self,
@@ -20,7 +20,7 @@ class Explosion(pygame.sprite.Sprite):
         pos_y: list[int],
         original: bool = False,
     ) -> None:
-        """Initialize placement ranges, directories, and frame lists."""
+        """Initialize placement ranges and cached frames."""
         super().__init__()
         self.game: Game = game
         self.pos_x: list[int] = pos_x
@@ -29,15 +29,13 @@ class Explosion(pygame.sprite.Sprite):
         self.rand_pos_y: int = randint(pos_y[0], pos_y[1])
         self.original: bool = original
 
-        path: Path = settings.GRAPHICS_DIR / "explosion"
-        explosion_images = [
-            pygame.image.load(str(p))
-            for p in sorted(path.glob("*.png"))
-        ]
-        self.explosion_list: list[pygame.Surface] = [
-            pygame.transform.scale(img, (50, 50)).convert_alpha()
-            for img in explosion_images
-        ]
+        self.explosion_list: list[pygame.Surface] = (
+            self.game.assets.animations["explosion"]
+        )
+        self.explosion_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks["explosion"]
+        )
+        
         self.explosion_index: float = 0.0
         self.image: pygame.Surface = self.explosion_list[
             int(self.explosion_index)
@@ -45,7 +43,9 @@ class Explosion(pygame.sprite.Sprite):
         self.rect: pygame.Rect = self.image.get_rect(
             center=(self.rand_pos_x, self.rand_pos_y)
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = self.explosion_masks[
+            int(self.explosion_index)
+        ]
 
     def animation(self, dt: float) -> None:
         """Advance detonation frames based on delta scale."""
@@ -53,12 +53,15 @@ class Explosion(pygame.sprite.Sprite):
         if self.explosion_index >= len(self.explosion_list):
             self.explosion_index = float(len(self.explosion_list) - 1)
             self.kill()
-        self.image = self.explosion_list[int(self.explosion_index)]
+        
+        idx = int(self.explosion_index)
+        self.image = self.explosion_list[idx]
+        self.mask = self.explosion_masks[idx]
 
         if self.original:
             self.game.explosions.add(
                 Explosion(self.game, self.pos_x, self.pos_y)
-            )
+                    )
 
     def update(self, dt: float) -> None:
         """Calculate layout frame updates."""

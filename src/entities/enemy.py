@@ -1,6 +1,5 @@
 """Hostile UFO spaceship and its weapons animations."""
 from __future__ import annotations
-from pathlib import Path
 import typing
 from random import randint, uniform
 import pygame
@@ -12,26 +11,11 @@ if typing.TYPE_CHECKING:
     from src.game import Game
 
 
-def _load_scaled_frames(
-    path: Path, size: tuple[int, int] | None = None
-) -> list[pygame.Surface]:
-    """Helper to load, scale, and convert animations from a folder."""
-    if not path.exists():
-        return []
-    frames = []
-    for p in sorted(path.glob("*.png")):
-        img = pygame.image.load(str(p))
-        if size is not None:
-            img = pygame.transform.scale(img, size)
-        frames.append(img.convert_alpha())
-    return frames
-
-
 class Enemy(pygame.sprite.Sprite):
     """The hostile UFO entity."""
 
     def __init__(self, game: Game) -> None:
-        """Initialize UFO speeds, trackers, masks, and graphic lists."""
+        """Initialize UFO speeds, trackers, and retrieve assets."""
         super().__init__()
         self.game: Game = game
         self.x_movement_speed: float = 360.0 * self.game.game_speed
@@ -48,32 +32,26 @@ class Enemy(pygame.sprite.Sprite):
         self.trigger_laser_fire: int = 0
         self.laser_cooldown: float = uniform(2.0, 4.0)
 
-        # Track if a projectile has been released
         self.laser_fired: bool = False
 
-        path_img: Path = settings.GRAPHICS_DIR / "enemy" / "ufo 33x33.png"
-        img = pygame.image.load(str(path_img)).convert_alpha()
-        self.image: pygame.Surface = pygame.transform.scale(
-            img, (66, 66)
-        ).convert_alpha()
+        self.image: pygame.Surface = (
+            self.game.assets.sprites["enemy_ufo"]
+        )
         self.rect: pygame.Rect = self.image.get_rect(
             midtop=(randint(75, settings.SCREEN_WIDTH - 75), -50)
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = self.game.assets.masks["enemy_ufo"]
 
-        # Floating-point position trackers
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
 
-        # Lights animation sequences loaded via module helper
-        self.lights_list: list[pygame.Surface] = _load_scaled_frames(
-            settings.GRAPHICS_DIR / "enemy" / "lights", (66, 66)
+        self.lights_list: list[pygame.Surface] = (
+            self.game.assets.animations["enemy_lights"]
         )
         self.lights_index: float = 0.0
 
-        # Laser cannons animation sequences loaded via module helper
-        self.laser_gun_list: list[pygame.Surface] = _load_scaled_frames(
-            settings.GRAPHICS_DIR / "enemy" / "laser gun", (66, 22)
+        self.laser_gun_list: list[pygame.Surface] = (
+            self.game.assets.animations["enemy_laser_gun"]
         )
         self.laser_gun_index: float = 0.0
 
@@ -87,15 +65,21 @@ class Enemy(pygame.sprite.Sprite):
         else:
             self.pos_x -= self.x_movement_speed * dt
 
-        # Laser bullet evasion mechanics
         for laser_beam in self.game.player_shots:
             in_range: bool = (
-                self.rect.left <= laser_beam.rect.centerx <= self.rect.right
+                self.rect.left 
+                <= laser_beam.rect.centerx 
+                <= self.rect.right
             )
             is_above: bool = laser_beam.rect.top > self.rect.centery
             if in_range and is_above:
-                if self.evading_chance >= randint(0, 100) and not self.evaded:
-                    self.movement_direction = not self.movement_direction
+                if (
+                    self.evading_chance >= randint(0, 100) 
+                    and not self.evaded
+                ):
+                    self.movement_direction = (
+                        not self.movement_direction
+                    )
                     self.evaded = True
 
         if self.evaded:
@@ -139,23 +123,26 @@ class Enemy(pygame.sprite.Sprite):
             self.kill()
 
     def laser_fire(self, dt: float) -> None:
-        """Process targeting alignments and instantiate ufo laser beams."""
+        """Process alignments and spawn ufo laser beams."""
         self.laser_cooldown -= dt
         if self.laser_cooldown <= 0.0:
             self.laser_cooldown = 0.0
             if self.game.ship.sprite:
                 player_rect = self.game.ship.sprite.rect
                 cond_left: bool = (
-                    self.rect.left <= player_rect.right <= self.rect.right
+                    self.rect.left 
+                    <= player_rect.right 
+                    <= self.rect.right
                 )
                 cond_right: bool = (
-                    self.rect.right >= player_rect.left >= self.rect.left
+                    self.rect.right 
+                    >= player_rect.left 
+                    <= self.rect.left
                 )
                 if cond_left or cond_right:
                     self.trigger_laser_fire = 1
                     self.laser_cooldown = uniform(1.0, 1.5)
 
-        # Trigger laser projectile exactly once when threshold met
         if (
             self.trigger_laser_fire
             and self.laser_gun_index >= 4.0
@@ -169,7 +156,7 @@ class Enemy(pygame.sprite.Sprite):
             self.laser_fired = True
 
     def collision(self) -> None:
-        """Observe projectile contacts to resolve destruction scores."""
+        """Observe projectile contacts to resolve scores."""
         for laser_beam in self.game.player_shots:
             if self.rect.top >= 0:
                 if pygame.sprite.collide_rect(self, laser_beam):
@@ -200,12 +187,11 @@ class Enemy(pygame.sprite.Sprite):
             )
 
     def update(self, dt: float) -> None:
-        """Evaluate layout offsets, ticks, and overlap cycles."""
+        """Evaluate layout offsets, ticks, and overlaps."""
         self.movement(dt)
         self.laser_fire(dt)
         self.collision()
 
-        # Update tick indexes (Logic)
         if self.turn_direction:
             self.lights_index += 30.0 * dt
             if self.lights_index >= len(self.lights_list):
@@ -227,7 +213,7 @@ class EnemyLaserBeam(pygame.sprite.Sprite):
     """Weapon laser fired by UFOs."""
 
     def __init__(self, game: Game, pos: tuple[int, int]) -> None:
-        """Initialize weapons frames, vectors, and construct bounds."""
+        """Initialize weapons, vectors, and retrieve assets."""
         super().__init__()
         self.game: Game = game
         self.movement_speed: float = (
@@ -235,16 +221,21 @@ class EnemyLaserBeam(pygame.sprite.Sprite):
         )
         self.pos: tuple[int, int] = pos
 
-        path: Path = settings.GRAPHICS_DIR / "enemy" / "laser beam"
-        self.laser_beam_list: list[pygame.Surface] = _load_scaled_frames(
-            path, (14, 22)
+        self.laser_beam_list: list[pygame.Surface] = (
+            self.game.assets.animations["enemy_laser_beam"]
         )
+        self.laser_beam_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks["enemy_laser_beam"]
+        )
+        
         self.laser_beam_index: float = 0.0
         self.image: pygame.Surface = self.laser_beam_list[
             int(self.laser_beam_index)
         ]
         self.rect: pygame.Rect = self.image.get_rect(midtop=pos)
-        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = self.laser_beam_masks[
+            int(self.laser_beam_index)
+        ]
 
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
@@ -254,7 +245,10 @@ class EnemyLaserBeam(pygame.sprite.Sprite):
         self.laser_beam_index += 12.0 * dt
         if self.laser_beam_index >= len(self.laser_beam_list):
             self.laser_beam_index = 0.0
-        self.image = self.laser_beam_list[int(self.laser_beam_index)]
+        
+        idx = int(self.laser_beam_index)
+        self.image = self.laser_beam_list[idx]
+        self.mask = self.laser_beam_masks[idx]
 
     def movement(self, dt: float) -> None:
         """Update translation vectors."""

@@ -1,6 +1,5 @@
 """Parallax scrolling star background element rendering layers."""
 from __future__ import annotations
-from pathlib import Path
 import typing
 from random import randint
 import pygame
@@ -11,25 +10,9 @@ if typing.TYPE_CHECKING:
     from src.game import Game
 
 
-def _load_scaled_frames(
-    path: Path, size: tuple[int, int] | None = None
-) -> list[pygame.Surface]:
-    """Helper to load, scale, and convert animations from a folder."""
-    if not path.exists():
-        return []
-    frames = []
-    for p in sorted(path.glob("*.png")):
-        img = pygame.image.load(str(p))
-        if size is not None:
-            img = pygame.transform.scale(img, size)
-        frames.append(img.convert_alpha())
-    return frames
-
-
 class Star(pygame.sprite.Sprite):
     """Parallax scrolling star for the simulated depth background."""
 
-    # Static data table mapping distance values to pixel sizes
     SCALES: tuple[tuple[int, int], ...] = (
         (5, 13),
         (10, 26),
@@ -40,7 +23,7 @@ class Star(pygame.sprite.Sprite):
     )
 
     def __init__(self, game: Game, y_pos: int = -50) -> None:
-        """Initialize parallax scrolling rate speeds, bounds, and scales."""
+        """Initialize scroll parameters and retrieve cached frames."""
         super().__init__()
         self.game: Game = game
         self.star_distance: int = randint(0, 20)
@@ -52,19 +35,17 @@ class Star(pygame.sprite.Sprite):
                 scale_size = size
                 break
 
-        # Compile background star arrays using optimized direct scale load
-        self.all_stars_list: list[list[pygame.Surface]] = []
-        for num in range(1, 5):
-            path: Path = settings.GRAPHICS_DIR / "bg" / f"star {num}"
-            star_imgs = _load_scaled_frames(path, (scale_size, scale_size))
-            self.all_stars_list.append(star_imgs)
+        self.all_stars_index: int = randint(0, 3)
+        anim_key: str = f"star_{self.all_stars_index + 1}_{scale_size}"
+        self.star_list: list[pygame.Surface] = (
+            self.game.assets.animations[anim_key]
+        )
 
         self.star_index: float = float(
-            randint(0, len(self.all_stars_list[0]) - 1)
+            randint(0, len(self.star_list) - 1)
         )
-        self.all_stars_index: int = randint(0, len(self.all_stars_list) - 1)
 
-        self.image: pygame.Surface = self.all_stars_list[self.all_stars_index][
+        self.image: pygame.Surface = self.star_list[
             int(self.star_index)
         ]
         self.rect: pygame.Rect = self.image.get_rect(
@@ -74,7 +55,7 @@ class Star(pygame.sprite.Sprite):
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
 
-        # Resolve scroll speed based on distance grouping (pixels per second)
+        # Resolve scroll speed based on distance grouping
         if self.star_distance in (0, 1, 2, 3, 4, 5):
             self.scroll_speed: float = 60.0
         elif self.star_distance in (6, 7, 8, 9, 10):
@@ -91,11 +72,9 @@ class Star(pygame.sprite.Sprite):
     def animation(self, dt: float) -> None:
         """Calculate animated offset frames."""
         self.star_index += 30.0 * dt
-        if self.star_index >= len(self.all_stars_list[self.all_stars_index]):
+        if self.star_index >= len(self.star_list):
             self.star_index = 0.0
-        self.image = self.all_stars_list[self.all_stars_index][
-            int(self.star_index)
-        ]
+        self.image = self.star_list[int(self.star_index)]
 
     def movement(self, dt: float) -> None:
         """Propagate dynamic depth vector coordinates."""

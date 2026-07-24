@@ -1,6 +1,5 @@
 """Shield, Health, and Energy collectibles."""
 from __future__ import annotations
-from pathlib import Path
 import typing
 from random import randint
 import pygame
@@ -11,21 +10,6 @@ if typing.TYPE_CHECKING:
     from src.game import Game
 
 
-def _load_scaled_frames(
-    path: Path, size: tuple[int, int] | None = None
-) -> list[pygame.Surface]:
-    """Helper to load, scale, and convert animations from a folder."""
-    if not path.exists():
-        return []
-    frames = []
-    for p in sorted(path.glob("*.png")):
-        img = pygame.image.load(str(p))
-        if size is not None:
-            img = pygame.transform.scale(img, size)
-        frames.append(img.convert_alpha())
-    return frames
-
-
 class _BasePowerup(pygame.sprite.Sprite):
     """Internal base class handling movement, bounds, and animations."""
 
@@ -33,24 +17,28 @@ class _BasePowerup(pygame.sprite.Sprite):
         self,
         game: Game,
         folder_name: str,
-        size: tuple[int, int] | None = None,
         anim_speed: float = 15.0,
     ) -> None:
-        """Initialize generic bounding parameters and frame folders."""
+        """Initialize generic parameters and query cached frames."""
         super().__init__()
         self.game: Game = game
         self.anim_speed: float = anim_speed
 
-        path: Path = settings.GRAPHICS_DIR / "powerups" / folder_name
-        self.image_list: list[pygame.Surface] = _load_scaled_frames(
-            path, size
+        self.image_list: list[pygame.Surface] = (
+            self.game.assets.animations[folder_name]
         )
+        self.image_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks[folder_name]
+        )
+        
         self.image_index: float = 0.0
-        self.image: pygame.Surface = self.image_list[int(self.image_index)]
+        self.image: pygame.Surface = self.image_list[
+            int(self.image_index)
+        ]
         self.rect: pygame.Rect = self.image.get_rect(
             center=(randint(50, settings.SCREEN_WIDTH - 50), -50)
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = self.image_masks[int(self.image_index)]
 
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
@@ -60,7 +48,10 @@ class _BasePowerup(pygame.sprite.Sprite):
         self.image_index += self.anim_speed * dt
         if self.image_index >= len(self.image_list):
             self.image_index = 0.0
-        self.image = self.image_list[int(self.image_index)]
+        
+        idx = int(self.image_index)
+        self.image = self.image_list[idx]
+        self.mask = self.image_masks[idx]
 
     def movement(self, dt: float) -> None:
         """Update forward vertical translation vector."""

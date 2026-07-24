@@ -15,7 +15,7 @@ class Obstacle(pygame.sprite.Sprite):
     """The falling hazard space rocks/asteroids."""
 
     def __init__(self, game: Game) -> None:
-        """Initialize asteroid velocity, rotations, and vector paths."""
+        """Initialize asteroid velocity, rotations, and vectors."""
         super().__init__()
         self.game: Game = game
         self.speed_x: float = (
@@ -28,15 +28,13 @@ class Obstacle(pygame.sprite.Sprite):
         self.turn_direction: int = randint(0, 1)
         self.turn_speed: float = uniform(30.0, 60.0)
 
-        path: Path = settings.GRAPHICS_DIR / "obstacles" / "rock"
-        obstacle_images = [
-            pygame.image.load(str(p))
-            for p in sorted(path.glob("*.png"))
-        ]
-        self.obstacle_list: list[pygame.Surface] = [
-            pygame.transform.scale(img, (78, 78)).convert_alpha()
-            for img in obstacle_images
-        ]
+        self.obstacle_list: list[pygame.Surface] = (
+            self.game.assets.animations["rock"]
+        )
+        self.obstacle_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks["rock"]
+        )
+        
         self.obstacle_index: float = 0.0
         self.image: pygame.Surface = self.obstacle_list[
             int(self.obstacle_index)
@@ -44,7 +42,9 @@ class Obstacle(pygame.sprite.Sprite):
         self.rect: pygame.Rect = self.image.get_rect(
             center=(randint(-100, settings.SCREEN_WIDTH + 100), -50)
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(self.image)
+        self.mask: pygame.Mask = self.obstacle_masks[
+            int(self.obstacle_index)
+        ]
 
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
@@ -55,17 +55,19 @@ class Obstacle(pygame.sprite.Sprite):
             self.obstacle_index += self.turn_speed * dt
             if self.obstacle_index >= len(self.obstacle_list):
                 self.obstacle_index = 0.0
-            self.image = self.obstacle_list[int(self.obstacle_index)]
         else:
             self.obstacle_index -= self.turn_speed * dt
             if self.obstacle_index <= 0:
                 self.obstacle_index = float(
                     len(self.obstacle_list) - 1
                 )
-            self.image = self.obstacle_list[int(self.obstacle_index)]
+        
+        idx = int(self.obstacle_index)
+        self.image = self.obstacle_list[idx]
+        self.mask = self.obstacle_masks[idx]
 
     def movement(self, dt: float) -> None:
-        """Calculate directional translation and viewport boundary exits."""
+        """Calculate directional translation and viewport exits."""
         if self.direction_x:
             self.pos_x += self.speed_x * dt
         else:

@@ -1,6 +1,5 @@
-"""Player controlled spaceship sprite and secondary player weapons/shields."""
+"""Player controlled spaceship and secondary weapons/shields."""
 from __future__ import annotations
-from pathlib import Path
 import typing
 import pygame
 
@@ -11,25 +10,11 @@ if typing.TYPE_CHECKING:
     from src.game import Game
 
 
-def _load_scaled_frames(
-    path: Path, size: tuple[int, int]
-) -> list[pygame.Surface]:
-    """Helper to load, scale, and convert animations from a folder."""
-    if not path.exists():
-        return []
-    return [
-        pygame.transform.scale(
-            pygame.image.load(str(p)), size
-        ).convert_alpha()
-        for p in sorted(path.glob("*.png"))
-    ]
-
-
 class PlayerShip(pygame.sprite.Sprite):
     """The player controlled spaceship sprite."""
 
     def __init__(self, game: Game) -> None:
-        """Initialize ship attributes, positions, and animation paths."""
+        """Initialize ship attributes, positions, and cached assets."""
         super().__init__()
         self.game: Game = game
         self.score: int = 0
@@ -41,51 +26,32 @@ class PlayerShip(pygame.sprite.Sprite):
         self.health: int = 10
         self.energy: int = 200
 
-        # Track if a projectile has been released
         self.laser_fired: bool = False
 
-        # Load base graphic
-        img_path: Path = (
-            settings.GRAPHICS_DIR / "ship" / "ship 33x33.png"
-        )
-        img: pygame.Surface = pygame.image.load(str(img_path))
-        self.image: pygame.Surface = pygame.transform.scale(
-            img, (66, 66)
-        ).convert_alpha()
+        self.image: pygame.Surface = self.game.assets.sprites["ship"]
         self.rect: pygame.Rect = self.image.get_rect(
             midtop=(
                 settings.SCREEN_WIDTH // 2,
                 settings.SCREEN_HEIGHT - 200,
             )
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(
-            self.image
-        )
+        self.mask: pygame.Mask = self.game.assets.masks["ship"]
 
-        # Floating-point coordinate position vectors
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
 
-        # Load animation sequences
         self.lights_list: list[pygame.Surface] = (
-            _load_scaled_frames(
-                settings.GRAPHICS_DIR / "ship" / "lights", (42, 14)
-            )
+            self.game.assets.animations["ship_lights"]
         )
         self.lights_index: float = 0.0
 
         self.exhaust_list: list[pygame.Surface] = (
-            _load_scaled_frames(
-                settings.GRAPHICS_DIR / "ship" / "exhaust", (66, 66)
-            )
+            self.game.assets.animations["ship_exhaust"]
         )
         self.exhaust_index: float = 0.0
 
         self.laser_gun_list: list[pygame.Surface] = (
-            _load_scaled_frames(
-                settings.GRAPHICS_DIR / "ship" / "laser gun",
-                (66, 66)
-            )
+            self.game.assets.animations["ship_laser_gun"]
         )
         self.laser_gun_index: float = 0.0
 
@@ -96,7 +62,7 @@ class PlayerShip(pygame.sprite.Sprite):
             self.game.trigger_game_over()
 
     def controls(self, dt: float) -> None:
-        """Process movement bindings, clamps, and projectile releases."""
+        """Process movement bindings, clamps, and projectiles."""
         pressed = pygame.key.get_pressed()
 
         if pressed[pygame.K_k]:
@@ -104,7 +70,6 @@ class PlayerShip(pygame.sprite.Sprite):
         if pressed[pygame.K_m]:
             self.use_mouse = True
 
-        # Keyboard mode movement controls
         if not self.use_mouse:
             pygame.mouse.set_visible(True)
             if pressed[pygame.K_LEFT]:
@@ -116,11 +81,9 @@ class PlayerShip(pygame.sprite.Sprite):
             if pressed[pygame.K_DOWN]:
                 self.pos_y += self.movement_speed * dt
 
-            # Assign float values to the integer Rect coordinates
             self.rect.x = int(self.pos_x)
             self.rect.y = int(self.pos_y)
 
-            # Sprite coordinate boundaries clamping
             self.rect.left = max(25, self.rect.left)
             self.rect.right = min(
                 settings.SCREEN_WIDTH - 25, self.rect.right
@@ -132,16 +95,13 @@ class PlayerShip(pygame.sprite.Sprite):
                 settings.SCREEN_HEIGHT - 50, self.rect.bottom
             )
 
-            # Re-sync float trackers to display boundaries
             self.pos_x = float(self.rect.x)
             self.pos_y = float(self.rect.y)
 
-        # Mouse mode movement controls with cursor locking
         if self.use_mouse:
             pygame.mouse.set_visible(False)
             m_x, m_y = pygame.mouse.get_pos()
 
-            # Clamp coordinates to ship flight corridor
             clamped_x: int = max(
                 25, min(settings.SCREEN_WIDTH - 25, m_x)
             )
@@ -150,7 +110,6 @@ class PlayerShip(pygame.sprite.Sprite):
                 min(settings.SCREEN_HEIGHT - 50, m_y),
             )
 
-            # Warp OS cursor to prevent coordinate drift
             if m_x != clamped_x or m_y != clamped_y:
                 pygame.mouse.set_pos((clamped_x, clamped_y))
 
@@ -158,7 +117,6 @@ class PlayerShip(pygame.sprite.Sprite):
             self.pos_x = float(self.rect.x)
             self.pos_y = float(self.rect.y)
 
-        # Weapon loading and firing
         if self.laser_cooldown < 0.416:
             self.laser_cooldown += dt
         if self.energy > 0:
@@ -169,7 +127,6 @@ class PlayerShip(pygame.sprite.Sprite):
             if firing_input and self.laser_cooldown >= 0.416:
                 self.trigger_laser_fire = 1
 
-            # Trigger laser projectile exactly once when threshold met
             if (
                 self.trigger_laser_fire
                 and self.laser_gun_index >= 4.0
@@ -210,8 +167,7 @@ class PlayerShip(pygame.sprite.Sprite):
                     )
 
     def collision(self) -> None:
-        """Observe visual overlaps to apply damage or pick up powerups."""
-        # Check enemy shot hits
+        """Observe visual overlaps to apply damage or powerups."""
         self._resolve_collision(
             self.game.enemy_shots,
             True,
@@ -220,7 +176,6 @@ class PlayerShip(pygame.sprite.Sprite):
             0.1,
             False,
         )
-        # Check enemy ufo body crashes
         self._resolve_collision(
             self.game.enemies,
             True,
@@ -229,7 +184,6 @@ class PlayerShip(pygame.sprite.Sprite):
             0.2,
             True,
         )
-        # Check asteroid crashes
         self._resolve_collision(
             self.game.obstacles,
             True,
@@ -239,7 +193,6 @@ class PlayerShip(pygame.sprite.Sprite):
             True,
         )
 
-        # Pick up floating powerups
         from src.entities.powerups import (
             ShieldPowerup, HealthPowerup, EnergyPowerup
         )
@@ -287,7 +240,6 @@ class PlayerShip(pygame.sprite.Sprite):
 
     def draw_extras(self, surface: pygame.Surface) -> None:
         """Draw composite decals, overlays, and status gauges."""
-        # Render score HUD
         score_str: str = str(self.game.score)
         score_surface: pygame.Surface = self.game.font_2.render(
             score_str, True, (255, 255, 251)
@@ -297,24 +249,20 @@ class PlayerShip(pygame.sprite.Sprite):
         )
         surface.blit(score_surface, (x_pos, 0))
 
-        # Ship lighting layer
         lights_img = self.lights_list[int(self.lights_index)]
         surface.blit(
             lights_img, (self.rect.x + 12, self.rect.y + 38)
         )
 
-        # Rocket engine exhaust layer
         exhaust_img = self.exhaust_list[int(self.exhaust_index)]
         surface.blit(
             exhaust_img, (self.rect.x, self.rect.y + 50)
         )
 
-        # Firing weapon muzzle animations
         if self.energy > 0 and self.trigger_laser_fire:
             gun_img = self.laser_gun_list[int(self.laser_gun_index)]
             surface.blit(gun_img, (self.rect.x, self.rect.y - 42))
 
-        # Draw glowing status indicators (Health Left / Energy Right)
         self._draw_hud_gauge(
             surface, 8, (0, 130, 0), 10, 11 + self.health * 25, 1
         )
@@ -332,7 +280,6 @@ class PlayerShip(pygame.sprite.Sprite):
         self.health_func()
         self.controls(dt)
 
-        # Update indicators using delta-time
         self.lights_index += 60.0 * dt
         if self.lights_index >= len(self.lights_list):
             self.lights_index = 0.0
@@ -359,10 +306,12 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
         super().__init__()
         self.game: Game = game
         self.laser_beam_list: list[pygame.Surface] = (
-            _load_scaled_frames(
-                settings.GRAPHICS_DIR / "ship" / "laser beam", (14, 22)
-            )
+            self.game.assets.animations["ship_laser_beam"]
         )
+        self.laser_beam_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks["ship_laser_beam"]
+        )
+        
         self.laser_beam_index: float = 0.0
         self.image: pygame.Surface = self.laser_beam_list[
             int(self.laser_beam_index)
@@ -370,9 +319,9 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
         self.rect: pygame.Rect = self.image.get_rect(
             midbottom=self.game.ship.sprite.rect.midtop
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(
-            self.image, threshold=1
-        )
+        self.mask: pygame.Mask = self.laser_beam_masks[
+            int(self.laser_beam_index)
+        ]
 
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
@@ -382,9 +331,10 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
         self.laser_beam_index += 60.0 * dt
         if self.laser_beam_index >= len(self.laser_beam_list):
             self.laser_beam_index = 0.0
-        self.image = self.laser_beam_list[
-            int(self.laser_beam_index)
-        ]
+        
+        idx = int(self.laser_beam_index)
+        self.image = self.laser_beam_list[idx]
+        self.mask = self.laser_beam_masks[idx]
 
     def movement(self, dt: float) -> None:
         """Propagate forward translation vector."""
@@ -409,10 +359,12 @@ class PlayerShield(pygame.sprite.Sprite):
         self.shield_health: int = 5
 
         self.image_list: list[pygame.Surface] = (
-            _load_scaled_frames(
-                settings.GRAPHICS_DIR / "ship" / "shield", (98, 98)
-            )
+            self.game.assets.animations["ship_shield"]
         )
+        self.image_masks: list[pygame.Mask] = (
+            self.game.assets.animation_masks["ship_shield"]
+        )
+        
         self.image_index: float = 0.0
         self.image: pygame.Surface = self.image_list[
             int(self.image_index)
@@ -423,9 +375,7 @@ class PlayerShield(pygame.sprite.Sprite):
                 self.game.ship.sprite.rect.centery + 9,
             )
         )
-        self.mask: pygame.Mask = pygame.mask.from_surface(
-            self.image, threshold=1
-        )
+        self.mask: pygame.Mask = self.image_masks[int(self.image_index)]
 
     def animation(self, dt: float) -> None:
         """Calculate rotation layout indexes."""
@@ -438,7 +388,10 @@ class PlayerShield(pygame.sprite.Sprite):
         self.image_index += 6.0 * dt
         if self.image_index >= len(self.image_list):
             self.image_index = 0.0
-        self.image = self.image_list[int(self.image_index)]
+        
+        idx = int(self.image_index)
+        self.image = self.image_list[idx]
+        self.mask = self.image_masks[idx]
 
     def _resolve_collision(
         self,
@@ -467,7 +420,6 @@ class PlayerShield(pygame.sprite.Sprite):
 
     def collision(self) -> None:
         """Observe overlaps to absorb projectile elements."""
-        # Check shield enemy projectile absorptions
         self._resolve_collision(
             self.game.enemy_shots,
             1,
@@ -475,7 +427,6 @@ class PlayerShield(pygame.sprite.Sprite):
             0.1,
             False,
         )
-        # Check shield enemy body absorptions
         self._resolve_collision(
             self.game.enemies,
             1,
@@ -483,7 +434,6 @@ class PlayerShield(pygame.sprite.Sprite):
             0.2,
             True,
         )
-        # Check shield obstacle absorptions
         self._resolve_collision(
             self.game.obstacles,
             1,
