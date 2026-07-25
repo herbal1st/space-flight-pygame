@@ -399,19 +399,29 @@ class Game:
             if self.score > self.difficulty:
                 self.game_speed = 1.0 + self.score / self.difficulty / 25.0
 
+            # Custom game speed scaling factor (damped)
+            scaling_factor: float = (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + self.game_speed
+            ) / (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + settings.INITIAL_GAME_SPEED
+            )
+
             # Custom clock spawning threshold evaluations
             if self.current_time >= self.next_enemy_spawn:
                 self.enemies.add(Enemy(self))
                 self.next_enemy_spawn = self.current_time + int(
-                    2000 / self.game_speed
+                    2000 / scaling_factor
                 )
 
             if self.current_time >= self.next_obstacle_spawn:
                 self.obstacles.add(Obstacle(self))
-                min_delay: int = int(1000 / self.game_speed)
-                max_delay: int = int(3000 / self.game_speed)
                 self.next_obstacle_spawn = (
-                    self.current_time + randint(min_delay, max_delay)
+                    self.current_time + randint(
+                        int(1000 / scaling_factor),
+                        int(3000 / scaling_factor)
+                    )
                 )
 
             if self.current_time >= self.next_powerup_spawn:
@@ -425,13 +435,6 @@ class Game:
                 self.powerups.add(choice_pow)
                 
                 # Dynamic Powerup Spawn rate scaling
-                scaling_factor: float = (
-                    settings.SCALING_DAMPENER + self.game_speed
-                ) / (
-                    settings.SCALING_DAMPENER
-                    + settings.INITIAL_GAME_SPEED
-                )
-                
                 next_delay: float = randint(
                     settings.BASE_POWERUP_SPAWN_RATE_MIN,
                     settings.BASE_POWERUP_SPAWN_RATE_MAX

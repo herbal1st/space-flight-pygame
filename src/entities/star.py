@@ -28,7 +28,6 @@ class Star(pygame.sprite.Sprite):
         self.game: Game = game
         self.star_distance: int = randint(0, 20)
 
-        # Resolve scale size via data lookup
         scale_size: int = 13
         for limit, size in self.SCALES:
             if self.star_distance <= limit:
@@ -80,8 +79,12 @@ class Star(pygame.sprite.Sprite):
         """Propagate dynamic depth vector coordinates."""
         # Calculate dynamic Scaling Multiplier (Sm)
         scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
 
         self.pos_y += self.scroll_speed * scaling_factor * dt
         self.rect.y = int(self.pos_y)

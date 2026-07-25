@@ -21,8 +21,12 @@ class Obstacle(pygame.sprite.Sprite):
 
         # Calculate dynamic Scaling Multiplier (Sm)
         scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
 
         self.speed_x: float = (
             float(randint(0, 5)) * 60.0 * scaling_factor
@@ -87,11 +91,19 @@ class Obstacle(pygame.sprite.Sprite):
             self.rect.right >= settings.SCREEN_WIDTH + 150
             or self.rect.x <= -150
         ):
+            # Recalculate dynamic scaling factor
+            scaling_factor: float = (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + self.game.game_speed
+            ) / (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + settings.INITIAL_GAME_SPEED
+            )
             self.speed_x = (
-                float(randint(2, 5)) * 60.0 * self.game.game_speed
+                float(randint(2, 5)) * 60.0 * scaling_factor
             )
             self.speed_y = (
-                float(randint(2, 5)) * 60.0 * self.game.game_speed
+                float(randint(2, 5)) * 60.0 * scaling_factor
             )
             self.direction_x = not self.direction_x
         if self.rect.top > settings.SCREEN_HEIGHT:

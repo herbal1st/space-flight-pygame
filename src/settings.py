@@ -33,7 +33,13 @@ HIGHSCORES_DIR: Path = BASE_DIR / "highscores"
 
 # --- Dynamic Weapon & Drop Scaling Configurations ---
 INITIAL_GAME_SPEED: float = 1.0  # units
-SCALING_DAMPENER: float = 1.0  # ratio
+BASE_GAME_SPEED_SCALING_DAMPENER: float = 1.0  # ratio
+KEYBOARD_MOVE_SPEED_SCALING_DAMPENER: float = 5.0  # ratio
+
+# Enemy Movement Base Parameters
+BASE_ENEMY_SPEED_X_MIN: float = 180.0  # pixels/sec
+BASE_ENEMY_SPEED_X_MAX: float = 360.0  # pixels/sec
+BASE_ENEMY_SPEED_Y: float = 60.0  # pixels/sec
 
 # Player Weapon Base Parameters
 BASE_PLAYER_LASER_SPEED: float = 420.0  # pixels/sec
@@ -47,8 +53,8 @@ BASE_ENEMY_LASER_DELAY_MIN: float = 0.8  # seconds
 BASE_ENEMY_LASER_DELAY_MAX: float = 1.8  # seconds
 
 # Enemy Spawn Firing Cooldown Parameters
-BASE_ENEMY_LASER_OCK_MIN: float = 2.0  # seconds
-BASE_ENEMY_LASER_OCK_MAX: float = 4.0  # seconds
+BASE_ENEMY_LASER_LOCK_MIN: float = 1.25  # seconds
+BASE_ENEMY_LASER_LOCK_MAX: float = 2.75  # seconds
 
 # Powerup Drop Base Parameters
 BASE_POWERUP_SPAWN_RATE_MIN: int = 10000  # milliseconds

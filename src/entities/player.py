@@ -80,14 +80,25 @@ class PlayerShip(pygame.sprite.Sprite):
 
         if not self.use_mouse:
             pygame.mouse.set_visible(True)
+
+            # Dampen keyboard speed dynamically
+            kb_scaling: float = (
+                settings.KEYBOARD_MOVE_SPEED_SCALING_DAMPENER
+                + self.game.game_speed
+            ) / (
+                settings.KEYBOARD_MOVE_SPEED_SCALING_DAMPENER
+                + settings.INITIAL_GAME_SPEED
+            )
+            current_speed: float = self.movement_speed * kb_scaling
+
             if pressed[pygame.K_LEFT]:
-                self.pos_x -= self.movement_speed * dt
+                self.pos_x -= current_speed * dt
             if pressed[pygame.K_RIGHT]:
-                self.pos_x += self.movement_speed * dt
+                self.pos_x += current_speed * dt
             if pressed[pygame.K_UP]:
-                self.pos_y -= self.movement_speed * dt
+                self.pos_y -= current_speed * dt
             if pressed[pygame.K_DOWN]:
-                self.pos_y -= self.movement_speed * dt
+                self.pos_y += current_speed * dt
 
             self.rect.x = int(self.pos_x)
             self.rect.y = int(self.pos_y)
@@ -127,8 +138,11 @@ class PlayerShip(pygame.sprite.Sprite):
 
         # Calculate dynamic Scaling Multiplier (Sm)
         scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
 
         dynamic_delay: float = (
             settings.BASE_PLAYER_LASER_DELAY / scaling_factor
@@ -267,7 +281,6 @@ class PlayerShip(pygame.sprite.Sprite):
 
     def draw_extras(self, surface: pygame.Surface) -> None:
         """Draw composite decals, overlays, and status gauges."""
-        # Optimized: Re-render score surface only when score changes
         if self.game.score != self.cached_score or not self.score_surface:
             self.cached_score = self.game.score
             score_str: str = str(self.cached_score)
@@ -308,13 +321,11 @@ class PlayerShip(pygame.sprite.Sprite):
 
     def update(self, dt: float) -> None:
         """Calculate layout animations, check controls, and impacts."""
-        # Cache starting position to calculate horizontal velocity
         starting_x: float = self.pos_x
 
         self.health_func()
         self.controls(dt)
 
-        # Calculate exact frame velocity
         self.velocity_x = (self.pos_x - starting_x) / dt
 
         self.lights_index += 60.0 * dt
@@ -365,8 +376,11 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
 
         # Dynamic player laser projectile speed scaling
         scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
         self.movement_speed: float = (
             settings.BASE_PLAYER_LASER_SPEED * scaling_factor
         )

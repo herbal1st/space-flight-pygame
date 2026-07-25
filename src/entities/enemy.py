@@ -18,8 +18,22 @@ class Enemy(pygame.sprite.Sprite):
         """Initialize UFO speeds, trackers, and retrieve assets."""
         super().__init__()
         self.game: Game = game
-        self.x_movement_speed: float = 360.0 * self.game.game_speed
-        self.y_movement_speed: float = 60.0 * self.game.game_speed
+
+        # --- Dynamic Scaling Factor ---
+        scaling_factor: float = (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
+
+        self.x_movement_speed: float = (
+            settings.BASE_ENEMY_SPEED_X_MAX * scaling_factor
+        )
+        self.y_movement_speed: float = (
+            settings.BASE_ENEMY_SPEED_Y * scaling_factor
+        )
         self.move_down_cooldown: float = 0.0
         self.distance_moved: float = 0.0
         self.move_down: bool = False
@@ -37,7 +51,10 @@ class Enemy(pygame.sprite.Sprite):
             self.game.assets.sprites["enemy_ufo"]
         )
         self.rect: pygame.Rect = self.image.get_rect(
-            midtop=(randint(75, settings.SCREEN_WIDTH - 75), -50)
+            midtop=(
+                randint(75, settings.SCREEN_WIDTH - 75),
+                -50
+            )
         )
         self.mask: pygame.Mask = self.game.assets.masks["enemy_ufo"]
 
@@ -59,14 +76,9 @@ class Enemy(pygame.sprite.Sprite):
         self.fire_delay: float = 4.0 / 30.0
         self.player_half_width: float = 33.0
 
-        # Scale the initial spawn firing delay dynamically by game speed
-        scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
-
         self.laser_cooldown: float = uniform(
-            settings.BASE_ENEMY_LASER_OCK_MIN,
-            settings.BASE_ENEMY_LASER_OCK_MAX
+            settings.BASE_ENEMY_LASER_LOCK_MIN,
+            settings.BASE_ENEMY_LASER_LOCK_MAX
         ) / scaling_factor
 
     def movement(self, dt: float) -> None:
@@ -104,8 +116,19 @@ class Enemy(pygame.sprite.Sprite):
 
         self.speed_change_cooldown += dt
         if self.speed_change_cooldown >= 0.5:
+            # Recalculate scaling factor dynamically
+            scaling_factor: float = (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + self.game.game_speed
+            ) / (
+                settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                + settings.INITIAL_GAME_SPEED
+            )
             self.x_movement_speed = (
-                uniform(180.0, 360.0) * self.game.game_speed
+                uniform(
+                    settings.BASE_ENEMY_SPEED_X_MIN,
+                    settings.BASE_ENEMY_SPEED_X_MAX
+                ) * scaling_factor
             )
             self.speed_change_cooldown = 0.0
 
@@ -145,26 +168,26 @@ class Enemy(pygame.sprite.Sprite):
                 player_rect = self.game.ship.sprite.rect
                 p_vel_x: float = self.game.ship.sprite.velocity_x
 
-                # Determine active speed of this enemy based on moving direction
+                # Determine active speed based on direction
                 v_enemy: float = (
                     self.x_movement_speed
                     if self.movement_direction
                     else -self.x_movement_speed
                 )
 
-                # Calculate relative drift distance during muzzle charge delay
+                # Calculate relative drift distance during muzzle delay
                 d_rel: float = (v_enemy - p_vel_x) * self.fire_delay
 
                 # Symmetrical trigger boundary check
                 if abs(d_rel) <= self.player_half_width:
-                    # Low speed: standard horizontal direct center alignment
+                    # Low speed: direct alignment
                     is_aligned = (
                         player_rect.left
                         <= self.rect.centerx
                         <= player_rect.right
                     )
                 else:
-                    # High speed: horizontal predictive targeting offset alignment
+                    # High speed: predictive target offset alignment
                     is_aligned = (
                         player_rect.left
                         <= self.rect.centerx + d_rel
@@ -175,9 +198,10 @@ class Enemy(pygame.sprite.Sprite):
                     self.trigger_laser_fire = 1
                     # Dynamic Firing Cooldown Scaling with Randomization
                     scaling_factor: float = (
-                        settings.SCALING_DAMPENER + self.game.game_speed
+                        settings.BASE_GAME_SPEED_SCALING_DAMPENER
+                        + self.game.game_speed
                     ) / (
-                        settings.SCALING_DAMPENER
+                        settings.BASE_GAME_SPEED_SCALING_DAMPENER
                         + settings.INITIAL_GAME_SPEED
                     )
                     self.laser_cooldown = uniform(
@@ -261,8 +285,12 @@ class EnemyLaserBeam(pygame.sprite.Sprite):
 
         # Dynamic enemy laser projectile speed scaling
         scaling_factor: float = (
-            settings.SCALING_DAMPENER + self.game.game_speed
-        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
         self.movement_speed: float = (
             settings.BASE_ENEMY_LASER_SPEED * scaling_factor
         )

@@ -55,7 +55,16 @@ class _BasePowerup(pygame.sprite.Sprite):
 
     def movement(self, dt: float) -> None:
         """Update forward vertical translation vector."""
-        self.pos_y += 300.0 * dt
+        # Calculate dynamic game speed scaling factor (damped)
+        scaling_factor: float = (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + self.game.game_speed
+        ) / (
+            settings.BASE_GAME_SPEED_SCALING_DAMPENER
+            + settings.INITIAL_GAME_SPEED
+        )
+
+        self.pos_y += 300.0 * scaling_factor * dt
         self.rect.y = int(self.pos_y)
         if self.rect.top > settings.SCREEN_HEIGHT:
             self.kill()
