@@ -67,6 +67,26 @@ desktop environments, this engine implements three core structural upgrades:
   spawn smoothly and reliably without losing events.
 
 ===============================================================================
+                       WEB-SAFE AUDIO & MIXER ARCHITECTURE
+===============================================================================
+
+To ensure reliable audio playback across both native desktop engines and sandboxed 
+WebAssembly browser environments, the sound systems implement two key upgrades:
+
+* Web-Safe Autoplay Context Unlocker:
+  Modern web browsers aggressively block web applications from playing audio 
+  before the user has explicitly interacted with the page. To prevent the audio 
+  mixer context from crashing or running in silent mode when compiled to Web-
+  Assembly and hosted on itch.io, the engine defers starting the menu music
+  until the first mouse click or keypress is registered in the event queue.
+
+* Channel Saturation Guard (SafeSound):
+  In intense combat scenarios, multiple explosion and laser effects can trigger 
+  simultaneously, leading to audio channel saturation and volume clipping. The 
+  sound system wraps native mixer objects in a guard class that dynamically caps 
+  concurrent overlapping playback requests to safe channel thresholds.
+
+===============================================================================
                              ROBUST LAUNCH SYSTEM
 ===============================================================================
 

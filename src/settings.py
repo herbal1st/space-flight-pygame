@@ -7,7 +7,7 @@ SCREEN_HEIGHT: int = 800  # pixels
 FPS: int = 60  # hertz
 
 # Diagnostic configurations
-SHOW_FPS: bool = False  # bool
+SHOW_FPS: bool = True  # bool
 
 # Difficulty score target constants
 DIFFICULTY_EASY: int = 1000  # points

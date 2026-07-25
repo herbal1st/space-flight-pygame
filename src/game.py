@@ -328,6 +328,12 @@ class Game:
             if event.type == pygame.QUIT:
                 self.shutdown()
 
+            # Unlock browser audio context on first interactive touch
+            if event.type in (pygame.MOUSEBUTTONDOWN, pygame.KEYDOWN):
+                if not self.music_started and self.game_state == "start":
+                    self.sound_menu_music.play(loops=-1)
+                    self.music_started = True
+
             is_focus_lost: bool = False
             if event.type == pygame.ACTIVEEVENT:
                 if hasattr(event, "gain") and event.gain == 0:
@@ -364,7 +370,6 @@ class Game:
     def update(self, dt: float) -> None:
         """Compute logical motion, custom timers, and animation ticks."""
         if self.game_init:
-            self.sound_menu_music.play(loops=-1)
             for _ in range(35):
                 start_y: int = randint(
                     -25, settings.SCREEN_HEIGHT + 25
@@ -422,6 +427,15 @@ class Game:
                     10000, 25000
                 )
 
+            self.explosions.update(dt)
+            self.obstacles.update(dt)
+            self.enemies.update(dt)
+            self.enemy_shots.update(dt)
+            self.player_shots.update(dt)
+            self.powerups.update(dt)
+            self.ship.update(dt)
+            self.player_shield.update(dt)
+        elif self.game_state == "game":
             self.explosions.update(dt)
             self.obstacles.update(dt)
             self.enemies.update(dt)

@@ -22,7 +22,10 @@ class AssetRegistry:
         print("[AssetRegistry] All 2D resources cached.")
 
     def _load_frames(
-        self, path: Path, size: Optional[Tuple[int, int]] = None
+        self,
+        path: Path,
+        size: Optional[Tuple[int, int]] = None,
+        threshold: Optional[int] = None,
     ) -> Tuple[List[pygame.Surface], List[pygame.Mask]]:
         """Helper to load, scale, and convert animations from a folder."""
         frames: List[pygame.Surface] = []
@@ -35,7 +38,13 @@ class AssetRegistry:
                 img = pygame.transform.scale(img, size)
             img = img.convert_alpha()
             frames.append(img)
-            masks.append(pygame.mask.from_surface(img))
+            
+            # If a custom threshold is set, compile with it; otherwise,
+            # fall back to Pygame's standard core-only mask generation.
+            if threshold is not None:
+                masks.append(pygame.mask.from_surface(img, threshold))
+            else:
+                masks.append(pygame.mask.from_surface(img))
         return frames, masks
 
     def _load_all(self) -> None:
@@ -60,7 +69,9 @@ class AssetRegistry:
         self.animation_masks["explosion"] = masks
 
         # --- Pre-load Powerup Items (Default Sizes) ---
-        for p_type in ("powerup shield", "powerup health", "powerup energy"):
+        for p_type in (
+            "powerup shield", "powerup health", "powerup energy"
+        ):
             p_path = settings.GRAPHICS_DIR / "powerups" / p_type
             frames, masks = self._load_frames(p_path)
             self.animations[p_type] = frames
@@ -95,8 +106,9 @@ class AssetRegistry:
         self.animations["ship_laser_beam"] = frames
         self.animation_masks["ship_laser_beam"] = masks
 
+        # The shield assets load here with a highly sensitive threshold of 1
         path = settings.GRAPHICS_DIR / "ship" / "shield"
-        frames, masks = self._load_frames(path, (98, 98))
+        frames, masks = self._load_frames(path, (98, 98), threshold=1)
         self.animations["ship_shield"] = frames
         self.animation_masks["ship_shield"] = masks
 
