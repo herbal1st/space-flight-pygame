@@ -223,6 +223,11 @@ class Game:
         self, name: str, score: int, difficulty_setting: int
     ) -> None:
         """Insert high score entry into persistence files."""
+        # Clean trailing spaces and fallback to a default safe anon string
+        cleaned_name: str = name.strip()
+        if not cleaned_name:
+            cleaned_name = "--ANON--"
+
         diff: str = self.get_difficulty_name(difficulty_setting)
         score_path: Path = settings.HIGHSCORES_DIR / f"{diff} scores.txt"
         name_path: Path = settings.HIGHSCORES_DIR / f"{diff} names.txt"
@@ -238,7 +243,7 @@ class Game:
             if score_val < score <= prev_val:
                 board_scores.insert(i, f"{score}\n")
                 board_scores.pop()
-                board_names.insert(i, f"{name}\n")
+                board_names.insert(i, f"{cleaned_name}\n")
                 board_names.pop()
 
         with open(score_path, "w") as f:
@@ -272,7 +277,10 @@ class Game:
             pygame.event.set_grab(False)
             pygame.mouse.set_visible(True)
 
+        # Centralized reset of session score and name upon menu exit/entry
         if state == "start":
+            self.score = 0
+            self.player_name = ""
             self.start_menu.add(StartingScreen(self))
         elif state == "options":
             self.options.add(Options(self))
@@ -320,6 +328,10 @@ class Game:
         self.enemy_shots.empty()
         self.obstacles.empty()
         self.explosions.empty()
+
+        # Reset global speed multiplier back to baseline immediately on death
+        self.game_speed = 1.0
+
         self.transition_to("game over")
 
     def handle_events(self) -> None:

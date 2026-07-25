@@ -134,6 +134,21 @@ The file-handling systems in `Game` automatically generate these directories
 and base templates if they are missing or corrupted on startup.
 
 ===============================================================================
+                    GLOBAL SPEED & TRANSITION STATE RESETS
+===============================================================================
+
+To prevent persistent variables from leaking between combat and menu
+transitions, the game implements unified resets:
+
+* Game Speed Multiplier:
+  Automatically restored to its baseline value of 1.0 immediately 
+  upon player death.
+
+* Centrally Isolated Score & Name:
+  Scores and name buffers are preserved during highscore submission 
+  but reset centrally upon entering the menu transition.
+
+===============================================================================
                              CONFIGURATION & SETTINGS MANUAL
 ===============================================================================
 
