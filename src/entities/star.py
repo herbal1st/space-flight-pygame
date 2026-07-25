@@ -78,7 +78,12 @@ class Star(pygame.sprite.Sprite):
 
     def movement(self, dt: float) -> None:
         """Propagate dynamic depth vector coordinates."""
-        self.pos_y += self.scroll_speed * self.game.game_speed * dt
+        # Calculate dynamic Scaling Multiplier (Sm)
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+
+        self.pos_y += self.scroll_speed * scaling_factor * dt
         self.rect.y = int(self.pos_y)
         if self.rect.top > settings.SCREEN_HEIGHT:
             self.kill()

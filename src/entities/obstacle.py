@@ -18,11 +18,17 @@ class Obstacle(pygame.sprite.Sprite):
         """Initialize asteroid velocity, rotations, and vectors."""
         super().__init__()
         self.game: Game = game
+
+        # Calculate dynamic Scaling Multiplier (Sm)
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+
         self.speed_x: float = (
-            float(randint(0, 5)) * 60.0 * self.game.game_speed
+            float(randint(0, 5)) * 60.0 * scaling_factor
         )
         self.speed_y: float = (
-            float(randint(2, 5)) * 60.0 * self.game.game_speed
+            float(randint(2, 5)) * 60.0 * scaling_factor
         )
         self.direction_x: int = randint(0, 1)
         self.turn_direction: int = randint(0, 1)

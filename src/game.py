@@ -423,19 +423,24 @@ class Game:
                     ]
                 )
                 self.powerups.add(choice_pow)
-                self.next_powerup_spawn = self.current_time + randint(
-                    10000, 25000
+                
+                # Dynamic Powerup Spawn rate scaling
+                scaling_factor: float = (
+                    settings.SCALING_DAMPENER + self.game_speed
+                ) / (
+                    settings.SCALING_DAMPENER
+                    + settings.INITIAL_GAME_SPEED
+                )
+                
+                next_delay: float = randint(
+                    settings.BASE_POWERUP_SPAWN_RATE_MIN,
+                    settings.BASE_POWERUP_SPAWN_RATE_MAX
+                ) / scaling_factor
+                
+                self.next_powerup_spawn = (
+                    self.current_time + int(next_delay)
                 )
 
-            self.explosions.update(dt)
-            self.obstacles.update(dt)
-            self.enemies.update(dt)
-            self.enemy_shots.update(dt)
-            self.player_shots.update(dt)
-            self.powerups.update(dt)
-            self.ship.update(dt)
-            self.player_shield.update(dt)
-        elif self.game_state == "game":
             self.explosions.update(dt)
             self.obstacles.update(dt)
             self.enemies.update(dt)

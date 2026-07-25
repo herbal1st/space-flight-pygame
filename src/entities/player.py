@@ -55,6 +55,14 @@ class PlayerShip(pygame.sprite.Sprite):
         )
         self.laser_gun_index: float = 0.0
 
+        # --- Dynamic Velocity Tracking Attributes ---
+        self.prev_x: float = float(self.rect.x)
+        self.velocity_x: float = 0.0
+
+        # --- UI Score Memoization Cache ---
+        self.cached_score: int = -1
+        self.score_surface: pygame.Surface = None
+
     def health_func(self) -> None:
         """Check structural health limits to trigger defeat states."""
         if self.health <= 0:
@@ -79,7 +87,7 @@ class PlayerShip(pygame.sprite.Sprite):
             if pressed[pygame.K_UP]:
                 self.pos_y -= self.movement_speed * dt
             if pressed[pygame.K_DOWN]:
-                self.pos_y += self.movement_speed * dt
+                self.pos_y -= self.movement_speed * dt
 
             self.rect.x = int(self.pos_x)
             self.rect.y = int(self.pos_y)
@@ -117,14 +125,23 @@ class PlayerShip(pygame.sprite.Sprite):
             self.pos_x = float(self.rect.x)
             self.pos_y = float(self.rect.y)
 
-        if self.laser_cooldown < 0.416:
+        # Calculate dynamic Scaling Multiplier (Sm)
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+
+        dynamic_delay: float = (
+            settings.BASE_PLAYER_LASER_DELAY / scaling_factor
+        )
+
+        if self.laser_cooldown < dynamic_delay:
             self.laser_cooldown += dt
         if self.energy > 0:
             firing_input = (
                 pressed[pygame.K_SPACE]
                 or pygame.mouse.get_pressed()[0]
             )
-            if firing_input and self.laser_cooldown >= 0.416:
+            if firing_input and self.laser_cooldown >= dynamic_delay:
                 self.trigger_laser_fire = 1
 
             if (
@@ -133,7 +150,17 @@ class PlayerShip(pygame.sprite.Sprite):
                 and not self.laser_fired
             ):
                 self.game.player_shots.add(PlayerLaserBeam(self.game))
-                self.energy -= 1
+                
+                # Calculate dynamic smoothed energy cost per shot
+                dampener: float = (
+                    1.0 + (scaling_factor - 1.0)
+                    * settings.ENERGY_SAVING_FACTOR
+                )
+                cost: float = (
+                    settings.BASE_PLAYER_LASER_COST / dampener
+                )
+                self.energy -= cost
+                
                 self.laser_cooldown = 0.0
                 self.game.sound_player_laser_shot.play()
                 self.game.sound_player_laser_shot.set_volume(0.2)
@@ -240,14 +267,18 @@ class PlayerShip(pygame.sprite.Sprite):
 
     def draw_extras(self, surface: pygame.Surface) -> None:
         """Draw composite decals, overlays, and status gauges."""
-        score_str: str = str(self.game.score)
-        score_surface: pygame.Surface = self.game.font_2.render(
-            score_str, True, (255, 255, 251)
-        )
+        # Optimized: Re-render score surface only when score changes
+        if self.game.score != self.cached_score or not self.score_surface:
+            self.cached_score = self.game.score
+            score_str: str = str(self.cached_score)
+            self.score_surface = self.game.font_2.render(
+                score_str, True, (255, 255, 251)
+            )
+
         x_pos: int = (
-            settings.SCREEN_WIDTH // 2 - len(score_str) * 12
+            settings.SCREEN_WIDTH // 2 - self.score_surface.get_width() // 2
         )
-        surface.blit(score_surface, (x_pos, 0))
+        surface.blit(self.score_surface, (x_pos, 0))
 
         lights_img = self.lights_list[int(self.lights_index)]
         surface.blit(
@@ -277,8 +308,14 @@ class PlayerShip(pygame.sprite.Sprite):
 
     def update(self, dt: float) -> None:
         """Calculate layout animations, check controls, and impacts."""
+        # Cache starting position to calculate horizontal velocity
+        starting_x: float = self.pos_x
+
         self.health_func()
         self.controls(dt)
+
+        # Calculate exact frame velocity
+        self.velocity_x = (self.pos_x - starting_x) / dt
 
         self.lights_index += 60.0 * dt
         if self.lights_index >= len(self.lights_list):
@@ -326,6 +363,14 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
         self.pos_x: float = float(self.rect.x)
         self.pos_y: float = float(self.rect.y)
 
+        # Dynamic player laser projectile speed scaling
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+        self.movement_speed: float = (
+            settings.BASE_PLAYER_LASER_SPEED * scaling_factor
+        )
+
     def animations(self, dt: float) -> None:
         """Calculate active layout indices."""
         self.laser_beam_index += 60.0 * dt
@@ -338,7 +383,7 @@ class PlayerLaserBeam(pygame.sprite.Sprite):
 
     def movement(self, dt: float) -> None:
         """Propagate forward translation vector."""
-        self.pos_y -= 600.0 * dt
+        self.pos_y -= self.movement_speed * dt
         self.rect.y = int(self.pos_y)
         if self.rect.bottom < 0:
             self.kill()

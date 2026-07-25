@@ -22,8 +22,9 @@ It has been fully modernized from its monolithic snapshot to demonstrate explici
 dependency injection, centralized routing, strict PEP 8 naming schemes, static
 type safety, and a zero-global state architecture.
 
-This structured setup prepares the combat models and coordinates for downstream
-3D procedural voxel parsing inside the PyVorengi SDK pipeline.
+The code features a highly optimized, dynamic scaling physics loop that unifies
+projectile speeds, weapon fire rates, and item drop frequencies on a smooth,
+dampened curve to provide an engaging, responsive retro combat experience.
 
 ===============================================================================
                               SYSTEM ENGINE SPEC
@@ -172,6 +173,66 @@ This creates the following progressive relationships:
      gradual, forgiving speed-increase curve.
 
 ===============================================================================
+                 UNIFIED DYNAMIC SCALING & GAMEPLAY PHYSICS
+===============================================================================
+
+Rather than scaling gameplay speeds directly in a linear fashion—which would make
+projectiles blindingly fast and deplete player fuel instantly at high scores—the
+engine runs a unified, dampened mathematical scaling loop. 
+
+All real-time velocity, weapon fire rate, and drop frequency scaling is governed
+by a central, dynamic Scaling Multiplier (Sm) calculated as follows:
+
+`scaling_factor = (SCALING_DAMPENER + game_speed) / (SCALING_DAMPENER + INITIAL_GAME_SPEED)`
+
+This coefficient acts as a mathematical "shock absorber." By adjusting the 
+`SCALING_DAMPENER` in your settings, you can flatten or sharpen the difficulty
+acceleration curve to prevent extreme speed spikes while keeping gameplay tense.
+
+This Scaling Multiplier controls the following systems in tandem:
+
+* Symmetrical Enemy Targeting:
+  Instead of checking offsets from one side of your ship, the targeting system
+  now checks if the enemy's center (line of fire) points anywhere inside the
+  player's horizontal boundaries. When the relative speed is low, the enemy
+  fires directly. If the speed is high, it automatically calculates a predictive
+  offset (using relative velocity) to lead its shots, preventing "lazy"
+  stationary gameplay.
+
+* Dampened Projectile Velocities (Player & Enemy):
+  Both player and enemy lasers increase their travel speed as the game speed 
+  rises, but they do so on a smoothed curve. This keeps projectiles highly
+  visible, dodgeable, and fair even when flying at maximum score velocities.
+
+* Energy-Saving Laser Cost:
+  As the player's firing rate accelerates at higher difficulties, holding down
+  constant fire would normally empty the energy bar in seconds. To balance this, 
+  each shot's energy cost is divided by a customized dampening factor:
+  
+  `Cost per Shot = BASE_PLAYER_LASER_COST / (1.0 + (scaling_factor - 1.0) * ENERGY_SAVING_FACTOR)`
+  
+  By tuning the `ENERGY_SAVING_FACTOR` (from 0.0 to 1.0) in your settings, you
+  can smoothly cushion this drain. At a value of 0.5, the rate of fuel drain per
+  second rises only moderately, preserving the classic arcade pressure without
+  crippling your offensive capabilities.
+
+* Star Background Acceleration:
+  Distant stars scroll faster as your score climbs, but they use our dampened
+  Scaling Multiplier. This keeps your visual forward acceleration perfectly in
+  sync with combat pacing while preventing distracting screen flicker.
+
+* Adaptive Hazard Speeds:
+  Tumbling space asteroids scale their vertical and horizontal velocities based on
+  our uniform multiplier. At high scores, they remain fast and challenging but
+  always physically reactable, avoiding impossible "instant-spawn" deaths.
+
+* Adaptive Drop Frequency:
+  Spawning rates for shields, health, and energy powerups dynamically increase
+  as the session accelerates. This ensures that support items appear more
+  frequently during high-throughput sequences, giving rise to clutch, 
+  "last-second" survival moments.
+
+===============================================================================
                              ROADMAP & OPTIMIZATION
 ===============================================================================
 
@@ -182,11 +243,17 @@ The modern architectural refactoring milestones have been completed:
 [x] Static Type Safety: Rigorous Python type hints integrated on all classes.
 [x] Modular Organization: Decoupled into src/entities/ and src/screens/.
 [x] Delta-Time & Frame-rate Independence: Fully integrated physics clock.
-[x] PyVorengi SDK Integration: Bridge this space combat model as a direct,
-    procedurally parsed 3D entity pipeline inside the PyVorengi voxel engine.
+[x] Dynamic Score Caching: Optimizes score drawing by caching text surfaces.
+    Instead of regenerating the text on every frame (a common CPU bottleneck
+    in Pygame), the engine only re-draws the scoreboard when your score actually
+    changes, resulting in dramatic CPU savings and consistent frame delivery.
 [x] Centralized Asset Pre-Caching: Startup loading, alpha-converting, scaling,
     and mask pre-calculation. Completely eliminates on-the-fly disk reads and 
     CPU collision mask compilation, ensuring stable, fluid frame pacing.
+[x] Symmetrical Lead-Aim Targeting: Corrected enemy horizontal firing logic to
+    resolve un-reactable "fly-overs" and support relative targeting.
+[x] Unified Dynamic Scaling Loop: Integrated dynamic math scaling across player
+    and enemy laser speeds, firing delays, powerup drops, and background stars.
 
 ===============================================================================
 Distributed under the MIT License. Copyright (c) 2026 herbal1st.

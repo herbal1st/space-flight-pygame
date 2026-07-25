@@ -30,7 +30,6 @@ class Enemy(pygame.sprite.Sprite):
         self.evaded: bool = bool(randint(0, 1))
         self.evasion_cooldown: float = 0.0
         self.trigger_laser_fire: int = 0
-        self.laser_cooldown: float = uniform(2.0, 4.0)
 
         self.laser_fired: bool = False
 
@@ -54,6 +53,21 @@ class Enemy(pygame.sprite.Sprite):
             self.game.assets.animations["enemy_laser_gun"]
         )
         self.laser_gun_index: float = 0.0
+
+        # --- Dynamic Target Calculations ---
+        # Cache visual delay constants at initialization to save runtime CPU
+        self.fire_delay: float = 4.0 / 30.0
+        self.player_half_width: float = 33.0
+
+        # Scale the initial spawn firing delay dynamically by game speed
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
+
+        self.laser_cooldown: float = uniform(
+            settings.BASE_ENEMY_LASER_OCK_MIN,
+            settings.BASE_ENEMY_LASER_OCK_MAX
+        ) / scaling_factor
 
     def movement(self, dt: float) -> None:
         """Calculate directional vectors, evasion steps, and bounds."""
@@ -129,19 +143,47 @@ class Enemy(pygame.sprite.Sprite):
             self.laser_cooldown = 0.0
             if self.game.ship.sprite:
                 player_rect = self.game.ship.sprite.rect
-                cond_left: bool = (
-                    self.rect.left 
-                    <= player_rect.right 
-                    <= self.rect.right
+                p_vel_x: float = self.game.ship.sprite.velocity_x
+
+                # Determine active speed of this enemy based on moving direction
+                v_enemy: float = (
+                    self.x_movement_speed
+                    if self.movement_direction
+                    else -self.x_movement_speed
                 )
-                cond_right: bool = (
-                    self.rect.right 
-                    >= player_rect.left 
-                    <= self.rect.left
-                )
-                if cond_left or cond_right:
+
+                # Calculate relative drift distance during muzzle charge delay
+                d_rel: float = (v_enemy - p_vel_x) * self.fire_delay
+
+                # Symmetrical trigger boundary check
+                if abs(d_rel) <= self.player_half_width:
+                    # Low speed: standard horizontal direct center alignment
+                    is_aligned = (
+                        player_rect.left
+                        <= self.rect.centerx
+                        <= player_rect.right
+                    )
+                else:
+                    # High speed: horizontal predictive targeting offset alignment
+                    is_aligned = (
+                        player_rect.left
+                        <= self.rect.centerx + d_rel
+                        <= player_rect.right
+                    )
+
+                if is_aligned:
                     self.trigger_laser_fire = 1
-                    self.laser_cooldown = uniform(1.0, 1.5)
+                    # Dynamic Firing Cooldown Scaling with Randomization
+                    scaling_factor: float = (
+                        settings.SCALING_DAMPENER + self.game.game_speed
+                    ) / (
+                        settings.SCALING_DAMPENER
+                        + settings.INITIAL_GAME_SPEED
+                    )
+                    self.laser_cooldown = uniform(
+                        settings.BASE_ENEMY_LASER_DELAY_MIN,
+                        settings.BASE_ENEMY_LASER_DELAY_MAX
+                    ) / scaling_factor
 
         if (
             self.trigger_laser_fire
@@ -216,9 +258,15 @@ class EnemyLaserBeam(pygame.sprite.Sprite):
         """Initialize weapons, vectors, and retrieve assets."""
         super().__init__()
         self.game: Game = game
+
+        # Dynamic enemy laser projectile speed scaling
+        scaling_factor: float = (
+            settings.SCALING_DAMPENER + self.game.game_speed
+        ) / (settings.SCALING_DAMPENER + settings.INITIAL_GAME_SPEED)
         self.movement_speed: float = (
-            (3.0 + (18.0 * self.game.game_speed / 6.0)) * 60.0
+            settings.BASE_ENEMY_LASER_SPEED * scaling_factor
         )
+
         self.pos: tuple[int, int] = pos
 
         self.laser_beam_list: list[pygame.Surface] = (
